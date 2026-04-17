@@ -37,13 +37,15 @@ OWNER=your-org node ~/.claude/pr-watch/poll.mjs --reset
 
 ## Environment variables
 
-| Variable | Required | Default | Description |
-|---|---|---|---|
-| `OWNER` | yes | — | GitHub org or user to watch |
-| `POLL_INTERVAL` | no | `120` | Seconds between polls |
-| `STOP_AT` | no | — | Stop at a wall-clock time, e.g. `17:30` (local time) |
-| `HOURS` | no | — | Stop after N hours, e.g. `4` |
-| `STATE_DIR` | no | `~/.claude/pr-watch` | Directory for `state.json` and `current.json` |
+No env vars are required. With `gh` authenticated the poller watches all orgs the user has access to.
+
+| Variable | Default | Description |
+|---|---|---|
+| `OWNER` | — | Limit to a specific GitHub org or user |
+| `POLL_INTERVAL` | `120` | Seconds between polls |
+| `STOP_AT` | — | Stop at a wall-clock time, e.g. `17:30` (local time) |
+| `HOURS` | — | Stop after N hours, e.g. `4` |
+| `STATE_DIR` | `~/.claude/pr-watch` | Directory for `state.json` and `current.json` |
 
 Stop time precedence: `HOURS` > `STOP_AT` > default (18:00 if started 07:00–18:00, else +4h).
 
@@ -53,7 +55,6 @@ The script exits with a non-zero code and a human-readable message if any of the
 - Node.js 18+
 - `gh` CLI in PATH
 - `gh` authenticated (`gh auth status`)
-- `OWNER` env var set
 
 ## Event protocol
 

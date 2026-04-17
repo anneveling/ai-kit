@@ -49,11 +49,7 @@ function preflight() {
 
 preflight();
 
-const OWNER = process.env.OWNER;
-if (!OWNER) {
-  process.stderr.write("Error: OWNER environment variable is required (e.g. OWNER=your-org)\n");
-  process.exit(1);
-}
+const OWNER = process.env.OWNER ?? null;
 
 const STATE_DIR = process.env.STATE_DIR ?? join(homedir(), ".claude", "pr-watch");
 mkdirSync(STATE_DIR, { recursive: true });
@@ -126,8 +122,9 @@ function ciSummary(checkRollup) {
 }
 
 function fetchPrList() {
-  const mine = gh(`search prs --state open --author @me --owner ${OWNER} --json "${SEARCH_FIELDS}" --limit 100`) ?? [];
-  const review = gh(`search prs --state open --review-requested @me --owner ${OWNER} --json "${SEARCH_FIELDS}" --limit 100`) ?? [];
+  const ownerFlag = OWNER ? `--owner ${OWNER}` : "";
+  const mine = gh(`search prs --state open --author @me ${ownerFlag} --json "${SEARCH_FIELDS}" --limit 100`) ?? [];
+  const review = gh(`search prs --state open --review-requested @me ${ownerFlag} --json "${SEARCH_FIELDS}" --limit 100`) ?? [];
 
   // Deduplicate by url, prefer 'author' role when a PR appears in both
   const map = new Map();
@@ -255,7 +252,7 @@ if (process.argv.includes("--reset")) {
 }
 
 const me = execSync("gh api user --jq '.login'", { encoding: "utf8" }).trim();
-log(`PR poller | org=${OWNER} | interval=${POLL_INTERVAL}s | user=${me}`);
+log(`PR poller | ${OWNER ? `org=${OWNER}` : "all orgs"} | interval=${POLL_INTERVAL}s | user=${me}`);
 log(`State: ${STATE_FILE}  Current: ${CURRENT_FILE}`);
 log(`Auto-stop: ${stopLabel}`);
 
