@@ -1,55 +1,66 @@
 # pr-watch
 
-A Claude Code command that monitors pull request status across a GitHub org. Runs a persistent background poller (`poll.mjs`) and surfaces changes — CI results, review decisions, new/closed PRs — as a live inbox.
-
-## What's in here
-
-| File | Purpose |
-|---|---|
-| `pr-watch.md` | The Claude Code slash command definition |
-| `poll.mjs` | Node.js poller — watches GitHub via `gh` CLI and emits change events |
+A Claude Code command that monitors pull request status across a GitHub org and tells you exactly what needs your attention — with **zero AI token usage when nothing changes**.
 
 ## How it works
 
-1. `poll.mjs` runs as a persistent process, polling GitHub every N seconds
-2. It writes full PR state to `~/.claude/pr-watch/current.json` and emits JSON change events to stdout
-3. The slash command starts the poller via Claude's `Monitor` tool and renders the inbox in a structured format with ball-in-court indicators
+The poller (`poll.mjs`) runs as a plain Node.js process entirely outside of Claude. It polls GitHub via the `gh` CLI and only emits an event when something actually changes — a new review, a CI result, a PR opening or closing. Claude wakes up, renders the update, and goes back to sleep. If your PRs sit untouched for an hour, you pay nothing.
 
-## Installation
-
-```bash
-# Copy the command definition
-cp pr-watch.md ~/.claude/commands/pr-watch.md
-
-# Copy the poller script
-mkdir -p ~/.claude/pr-watch
-cp poll.mjs ~/.claude/pr-watch/poll.mjs
-```
-
-## Usage
+This is different from running Claude on a timer: there's no periodic "check in" prompt, no background inference, no token burn just to find out nothing happened. The Node process does the watching; Claude only does the thinking when there's something to think about.
 
 ```
-/pr-watch
+poll.mjs (Node, no tokens)          Claude
+──────────────────────────          ──────────────────────────────────
+polls GitHub every 2 min  ───────►  (sleeping — zero tokens)
+polls GitHub every 2 min  ───────►  (sleeping — zero tokens)
+CI status changed!        ───────►  wakes up, renders update, asks what to do
+polls GitHub every 2 min  ───────►  (sleeping — zero tokens)
 ```
 
-Run it from any Claude Code session. It will start the poller and display your current PR inbox, then update live as things change.
+The slash command also auto-stops at 18:00 by default (configurable), so if you forget it running it won't accumulate cost overnight.
 
-## Configuration
+## Example output
 
-| Env var | Default | Description |
-|---|---|---|
-| `OWNER` | — | GitHub org/user to watch (required) |
-| `POLL_INTERVAL` | `120` | Seconds between polls |
-| `STOP_AT` | — | Stop at a specific clock time, e.g. `17:30` |
-| `HOURS` | — | Stop after N hours, e.g. `4` |
-| `STATE_DIR` | `~/.claude/pr-watch` | Where to write `state.json` and `current.json` |
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PR inbox — updated 14:23  |  stops 18:00 (3h 37m left)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-If neither `STOP_AT` nor `HOURS` is set, the poller auto-stops at 18:00 if started during working hours (07:00–18:00), otherwise runs for 4 hours.
+**── acme-corp/platform ──────────────────────**
 
-```bash
-OWNER=your-org node ~/.claude/pr-watch/poll.mjs
-OWNER=your-org POLL_INTERVAL=60 STOP_AT=17:30 node ~/.claude/pr-watch/poll.mjs
-OWNER=your-org HOURS=2 node ~/.claude/pr-watch/poll.mjs
+🫵 [PR #412 — Add rate limiting to API gateway](https://github.com/acme-corp/platform/pull/412)
+Role: author | CI: ✅ | Review: 🔴 CHANGES_REQUESTED
+Waiting: 2d 1h 🚨
+Next: address maya's feedback — /review-comments 412 in ~/projects/platform
+
+⏳ [PR #438 — Migrate auth service to Postgres](https://github.com/acme-corp/platform/pull/438)
+Role: author | CI: ⏳ | Review: 🟡 REVIEW_REQUIRED
+Waiting: 4h 12m
+Next: waiting for CI and reviewer
+
+**── acme-corp/mobile-app ────────────────────**
+
+🫵 [PR #87 — Fix crash on empty cart checkout](https://github.com/acme-corp/mobile-app/pull/87)
+Role: reviewer | CI: ✅ | Review: 🟡 REVIEW_REQUIRED
+Waiting: 1d 3h ⚠️
+Next: review this PR — /review-pr 87 in ~/projects/mobile-app
+
+⏳ [PR #91 — Dark mode follow-up tweaks](https://github.com/acme-corp/mobile-app/pull/91)
+Role: author | CI: ✅ | Review: 🟢 APPROVED
+Waiting: 52m
+Next: waiting on reviewer to merge
+```
+
+When something changes, Claude wakes up and notes what triggered the update:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PR inbox — updated 14:41  |  stops 18:00 (3h 19m left)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CI changed on PR #438 — Migrate auth service to Postgres: PENDING → FAILURE
+
+**── acme-corp/platform ──────────────────────**
+...
 ```
 
 ## Prerequisites
@@ -81,3 +92,7 @@ The poller script (`poll.mjs`) can also be run standalone without Claude Code if
 ---
 
 The script validates all of the above at startup and exits with a clear message if anything is missing.
+
+## Installation and configuration
+
+See [CLAUDE.md](CLAUDE.md) for precise installation steps, all configuration options, and the full event protocol — useful if you're setting this up programmatically or adapting it to a different AI agent.
