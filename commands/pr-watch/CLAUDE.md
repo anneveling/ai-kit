@@ -9,6 +9,21 @@ This file is the authoritative reference for installing, configuring, and operat
 | `pr-watch.md` | Claude Code slash command — copy to `~/.claude/commands/` |
 | `poll.mjs` | Node.js poller — copy to `~/.claude/pr-watch/` |
 
+## Checking for updates
+
+The installed version is in the second line of `~/.claude/pr-watch/poll.mjs`:
+
+```bash
+head -2 ~/.claude/pr-watch/poll.mjs
+# => #!/usr/bin/env node
+# => // poll.mjs — version 0.9.0
+```
+
+To check if an update is available, compare that version against the second line of the raw file at:
+`https://raw.githubusercontent.com/anneveling/ai-kit/main/commands/pr-watch/poll.mjs`
+
+To update, re-run the installation steps below.
+
 ## Installation
 
 ```bash
