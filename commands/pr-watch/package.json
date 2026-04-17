@@ -1,0 +1,12 @@
+{
+  "name": "pr-watch",
+  "version": "1.0.0",
+  "description": "GitHub PR status poller for Claude Code",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "pr-watch": "./poll.mjs"
+  }
+}
