@@ -16,6 +16,7 @@ import { execSync } from "child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
+import { ciSummary, computeStopTime, diffPr } from "./lib.mjs";
 
 // ── Preflight ────────────────────────────────────────────────────────────────
 
@@ -61,29 +62,6 @@ mkdirSync(STATE_DIR, { recursive: true });
 const STATE_FILE = join(STATE_DIR, "state.json");
 const CURRENT_FILE = join(STATE_DIR, "current.json");
 
-// Smart stop time:
-//   HOURS=N       → now + N hours
-//   STOP_AT=HH:MM → that clock time today
-//   default       → 18:00 if started 07:00–18:00 local, otherwise +4h
-function computeStopTime() {
-  if (process.env.HOURS) {
-    return new Date(Date.now() + parseFloat(process.env.HOURS) * 3600_000);
-  }
-  if (process.env.STOP_AT) {
-    const [h, m] = process.env.STOP_AT.split(":").map(Number);
-    const stopDate = new Date();
-    stopDate.setHours(h, m, 0, 0);
-    return stopDate;
-  }
-  const hour = new Date().getHours();
-  if (hour >= 7 && hour < 18) {
-    const stopDate = new Date();
-    stopDate.setHours(18, 0, 0, 0);
-    return stopDate;
-  }
-  return new Date(Date.now() + 4 * 3600_000);
-}
-
 const STOP_TIME = computeStopTime();
 const stopLabel = STOP_TIME.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
@@ -111,15 +89,6 @@ function ts() {
 
 function emit(event) {
   process.stdout.write(JSON.stringify({ ...event, stopAt: STOP_TIME.toISOString() }) + "\n");
-}
-
-function ciSummary(checkRollup) {
-  if (!checkRollup?.length) return null;
-  const states = checkRollup.map((c) => c.status ?? c.conclusion ?? "PENDING");
-  if (states.some((s) => ["FAILURE", "ERROR", "ACTION_REQUIRED"].includes(s))) return "FAILURE";
-  if (states.some((s) => ["IN_PROGRESS", "QUEUED", "PENDING", "WAITING"].includes(s))) return "PENDING";
-  if (states.every((s) => ["SUCCESS", "NEUTRAL", "SKIPPED", "COMPLETED"].includes(s))) return "SUCCESS";
-  return "PENDING";
 }
 
 // ── Data fetching ─────────────────────────────────────────────────────────────
@@ -208,16 +177,8 @@ function pollOnce(isFirstRun, me) {
             ciStatus: enriched.ciStatus,
           });
         } else {
-          const changes = {};
-          if (prev.reviewDecision !== enriched.reviewDecision) changes.reviewDecision = { from: prev.reviewDecision, to: enriched.reviewDecision };
-          if (prev.isDraft !== enriched.isDraft)               changes.isDraft         = { from: prev.isDraft,         to: enriched.isDraft };
-          if (prev.ciStatus !== enriched.ciStatus)             changes.ciStatus        = { from: prev.ciStatus,        to: enriched.ciStatus };
-
-          const prevReviewSig = JSON.stringify((prev.latestReviews     ?? []).map((r) => `${r.login}:${r.state}`).sort());
-          const nextReviewSig = JSON.stringify((enriched.latestReviews ?? []).map((r) => `${r.login}:${r.state}`).sort());
-          if (prevReviewSig !== nextReviewSig) changes.latestReviews = { from: prev.latestReviews, to: enriched.latestReviews };
-
-          if (Object.keys(changes).length > 0) {
+          const changes = diffPr(prev, enriched);
+          if (changes) {
             events.push({
               event: "changed", ts: ts(), repo, pr: enriched.number, title: enriched.title,
               url, role, reviewDecision: enriched.reviewDecision, isDraft: enriched.isDraft,

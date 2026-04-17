@@ -61,6 +61,16 @@ CI changed on PR #438 — Migrate auth service to Postgres: PENDING → FAILURE
 ...
 ```
 
+## Installation
+
+The quickest way is to tell Claude directly. Open any Claude Code session and paste:
+
+> Install the pr-watch command from https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch
+
+Claude will read the setup instructions and copy the files into place.
+
+For manual installation, see [CLAUDE.md](CLAUDE.md). For background on how Claude Code slash commands work, see the [Claude Code skills and commands documentation](https://code.claude.com/docs/en/slash-commands).
+
 ## Prerequisites
 
 ### Node.js 18+
