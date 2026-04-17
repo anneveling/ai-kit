@@ -52,8 +52,32 @@ OWNER=your-org POLL_INTERVAL=60 STOP_AT=17:30 node ~/.claude/pr-watch/poll.mjs
 OWNER=your-org HOURS=2 node ~/.claude/pr-watch/poll.mjs
 ```
 
-## Requirements
+## Prerequisites
 
-- Node.js 18+
-- `gh` CLI authenticated (`gh auth login`)
-- Claude Code with slash command support
+### Node.js 18+
+
+The poller uses ESM and top-level `await`, which require Node.js 18 or later.
+
+- Download: https://nodejs.org/en/download
+- Or via a version manager like [nvm](https://github.com/nvm-sh/nvm): `nvm install 18`
+
+Check your version: `node --version`
+
+### GitHub CLI (`gh`)
+
+All GitHub API calls go through the `gh` CLI — there are no npm dependencies.
+
+- Install: https://cli.github.com — covers Mac (Homebrew), Linux, and Windows
+- After installing, authenticate: `gh auth login`
+
+Check it works: `gh auth status`
+
+### Claude Code
+
+The slash command (`pr-watch.md`) requires [Claude Code](https://claude.ai/code) with slash command support.
+
+The poller script (`poll.mjs`) can also be run standalone without Claude Code if you want to consume the JSON event stream yourself.
+
+---
+
+The script validates all of the above at startup and exits with a clear message if anything is missing.

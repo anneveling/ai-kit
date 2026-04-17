@@ -16,6 +16,39 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
 
+function preflight() {
+  const errors = [];
+
+  // Node.js version
+  const [major] = process.versions.node.split(".").map(Number);
+  if (major < 18) {
+    errors.push(`  ✗ Node.js 18+ required (you have ${process.version}) — https://nodejs.org`);
+  }
+
+  // gh CLI in PATH
+  try {
+    execSync("gh --version", { stdio: "pipe" });
+  } catch {
+    errors.push("  ✗ gh CLI not found — install from https://cli.github.com");
+  }
+
+  // gh authenticated
+  if (!errors.some((e) => e.includes("gh CLI not found"))) {
+    try {
+      execSync("gh auth status", { stdio: "pipe" });
+    } catch {
+      errors.push("  ✗ gh CLI is not authenticated — run: gh auth login");
+    }
+  }
+
+  if (errors.length) {
+    process.stderr.write("pr-watch: missing prerequisites:\n" + errors.join("\n") + "\n");
+    process.exit(1);
+  }
+}
+
+preflight();
+
 const OWNER = process.env.OWNER;
 if (!OWNER) {
   process.stderr.write("Error: OWNER environment variable is required (e.g. OWNER=your-org)\n");
