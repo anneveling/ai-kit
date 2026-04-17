@@ -8,6 +8,7 @@ This file is the authoritative reference for installing, configuring, and operat
 |---|---|
 | `pr-watch.md` | Claude Code slash command — copy to `~/.claude/commands/` |
 | `poll.mjs` | Node.js poller — copy to `~/.claude/pr-watch/` |
+| `lib.mjs` | Pure functions used by `poll.mjs` — copy to `~/.claude/pr-watch/` |
 
 ## Checking for updates
 
@@ -29,7 +30,7 @@ To update, re-run the installation steps below.
 ```bash
 cp pr-watch.md ~/.claude/commands/pr-watch.md
 mkdir -p ~/.claude/pr-watch
-cp poll.mjs ~/.claude/pr-watch/poll.mjs
+cp poll.mjs lib.mjs ~/.claude/pr-watch/
 ```
 
 ## Invoking the command
