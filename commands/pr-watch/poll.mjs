@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// poll.mjs — version 0.9.0
+// poll.mjs — version 0.9.1
 // Polls GitHub for open PRs you authored or are requested to review.
 // Emits JSON change-event lines to stdout when anything changes.
 // Writes current.json with full current state on every poll.
