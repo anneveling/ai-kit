@@ -1,4 +1,4 @@
-Monitor your GitHub PR inbox by running `node ~/.claude/pr-watch/poll.mjs` as a **persistent** Monitor (persistent: true, no timeout).
+Monitor your GitHub PR inbox by running `node ~/.claude/pr-watch/poll.mjs` as a **persistent** Monitor (persistent: true, no timeout). The script auto-stops at 18:00 local time by default. Override with `STOP_AT=17:30` or `HOURS=4` env vars prefixed to the command.
 
 ## Display format
 
@@ -37,19 +37,38 @@ Show times as "2d 3h" or "4h 12m". Always show waiting time.
 
 ## Header
 
-Every output (initialized or change event) must start with a clear timestamp header on its own line, using the local wall-clock time at the moment you are responding (not the event's `ts` field, which is UTC server time). Format:
+Every output must start with a timestamp header. Every event carries a `stopAt` ISO field — use it to compute remaining time and show it in the header.
 
+Format:
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PR inbox — updated 13:10
+PR inbox — updated 13:10  |  stops 18:00 (4h 50m left)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-Use 24h local time (HH:MM). This makes it easy to see at a glance how stale the last update is.
+When < 10 min remaining, add ⚠️:
+```
+PR inbox — updated 17:52  |  ⚠️ stops 18:00 (8m left)
+```
+
+Use 24h local time (HH:MM) for both the current time and the stop time. The stop time comes from the event's `stopAt` ISO field converted to local time.
 
 ## On the `initialized` event
 
-Read `~/.claude/pr-watch/current.json` and display the full current state grouped by repo, using the format above.
+Read `~/.claude/pr-watch/current.json` and display the full current state grouped by repo, using the format above. Mention the stop time prominently: "Monitoring until HH:MM (Xh Ym from now)."
+
+## On the `warning` event
+
+The poller is approaching its stop time. Show the header (which will already display the ⚠️ since < 10 min remain), then say: "Monitoring stops in ~Nm at HH:MM. Reply **"continue"** or **"2h"** to restart after it stops." Do not re-read or re-display the full PR state — keep it brief.
+
+## On the `stopping` event
+
+The poller has exited — no more tokens will be consumed. Show the final state with the header, note that monitoring stopped at the scheduled time, then say:
+
+> Monitoring stopped at HH:MM. Reply **"continue"** (or a number of hours, e.g. **"2h"**) to restart. No reply needed to stay stopped.
+
+If the user replies to continue: restart the Monitor with `HOURS=<n>` (default 1 if they just said "continue"), e.g.:
+`OWNER=your-org HOURS=1 node ~/.claude/pr-watch/poll.mjs`
 
 ## On each subsequent change event (`new`, `changed`, `closed`)
 

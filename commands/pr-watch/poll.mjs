@@ -7,6 +7,8 @@
 // Usage:
 //   OWNER=your-org node poll.mjs
 //   OWNER=your-org POLL_INTERVAL=60 node poll.mjs
+//   OWNER=your-org STOP_AT=17:30 node poll.mjs   # stop at clock time
+//   OWNER=your-org HOURS=4 node poll.mjs          # stop after N hours
 //   OWNER=your-org node poll.mjs --reset
 
 import { execSync } from "child_process";
@@ -27,6 +29,36 @@ const STATE_FILE = join(STATE_DIR, "state.json");
 const CURRENT_FILE = join(STATE_DIR, "current.json");
 const POLL_INTERVAL = parseInt(process.env.POLL_INTERVAL ?? "120", 10);
 
+// Smart stop time:
+//   HOURS=N     → now + N hours (explicit duration)
+//   STOP_AT=HH:MM → that clock time today
+//   default     → if started 07:00–18:00 local: stop at 18:00; otherwise: +4h
+function computeStopTime() {
+  if (process.env.HOURS) {
+    return new Date(Date.now() + parseFloat(process.env.HOURS) * 3600_000);
+  }
+  if (process.env.STOP_AT) {
+    const [h, m] = process.env.STOP_AT.split(":").map(Number);
+    const t = new Date();
+    t.setHours(h, m, 0, 0);
+    return t;
+  }
+  const hour = new Date().getHours();
+  if (hour >= 7 && hour < 18) {
+    const t = new Date();
+    t.setHours(18, 0, 0, 0);
+    return t;
+  }
+  return new Date(Date.now() + 4 * 3600_000);
+}
+
+const STOP_TIME = computeStopTime();
+const stopLabel = STOP_TIME.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+// Warning thresholds in ms before stop time — fires once each
+const WARN_THRESHOLDS = [10 * 60_000, 5 * 60_000, 2 * 60_000];
+const warnedAt = new Set();
+
 const SEARCH_FIELDS = "number,title,url,repository,author,isDraft,updatedAt,state";
 const VIEW_FIELDS = "number,title,url,author,isDraft,reviewDecision,statusCheckRollup,reviews,reviewRequests,state,createdAt";
 
@@ -44,6 +76,11 @@ function log(msg) {
 
 function ts() {
   return new Date().toISOString().replace(/\.\d+Z$/, "Z");
+}
+
+// All events include stopAt so the command can always show remaining time
+function emit(event) {
+  process.stdout.write(JSON.stringify({ ...event, stopAt: STOP_TIME.toISOString() }) + "\n");
 }
 
 function ciSummary(checkRollup) {
@@ -111,10 +148,6 @@ function saveCurrent(prs) {
   writeFileSync(CURRENT_FILE, JSON.stringify(prs, null, 2));
 }
 
-function emit(event) {
-  process.stdout.write(JSON.stringify(event) + "\n");
-}
-
 async function pollOnce(isFirstRun, me) {
   log(`[${new Date().toISOString().slice(11, 19)}Z] polling...`);
 
@@ -176,7 +209,7 @@ async function pollOnce(isFirstRun, me) {
 
   if (isFirstRun) {
     const count = Object.keys(newState).length;
-    log(`Initialized: tracking ${count} PRs. Polling every ${POLL_INTERVAL}s.`);
+    log(`Initialized: tracking ${count} PRs. Polling every ${POLL_INTERVAL}s. Auto-stop at ${stopLabel}.`);
     emit({ event: "initialized", ts: ts(), count });
   }
 }
@@ -191,10 +224,27 @@ if (process.argv.includes("--reset")) {
 const me = execSync("gh api user --jq '.login'", { encoding: "utf8" }).trim();
 log(`PR poller | org=${OWNER} | interval=${POLL_INTERVAL}s | user=${me}`);
 log(`State: ${STATE_FILE}  Current: ${CURRENT_FILE}`);
+log(`Auto-stop: ${stopLabel}`);
 
 let isFirstRun = !existsSync(STATE_FILE) || readFileSync(STATE_FILE, "utf8").trim() === "{}";
 
 while (true) {
+  const msLeft = STOP_TIME.getTime() - Date.now();
+
+  if (msLeft <= 0) {
+    emit({ event: "stopping", ts: ts(), reason: "end_of_day" });
+    log(`Stop time ${stopLabel} reached — exiting.`);
+    process.exit(0);
+  }
+
+  // Emit countdown warnings once each at 10m, 5m, 2m
+  for (const threshold of WARN_THRESHOLDS) {
+    if (!warnedAt.has(threshold) && msLeft <= threshold) {
+      warnedAt.add(threshold);
+      emit({ event: "warning", ts: ts(), minutesLeft: Math.ceil(msLeft / 60_000) });
+    }
+  }
+
   await pollOnce(isFirstRun, me);
   isFirstRun = false;
   await new Promise((r) => setTimeout(r, POLL_INTERVAL * 1000));

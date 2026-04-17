@@ -40,11 +40,16 @@ Run it from any Claude Code session. It will start the poller and display your c
 |---|---|---|
 | `OWNER` | — | GitHub org/user to watch (required) |
 | `POLL_INTERVAL` | `120` | Seconds between polls |
+| `STOP_AT` | — | Stop at a specific clock time, e.g. `17:30` |
+| `HOURS` | — | Stop after N hours, e.g. `4` |
+| `STATE_DIR` | `~/.claude/pr-watch` | Where to write `state.json` and `current.json` |
+
+If neither `STOP_AT` nor `HOURS` is set, the poller auto-stops at 18:00 if started during working hours (07:00–18:00), otherwise runs for 4 hours.
 
 ```bash
 OWNER=your-org node ~/.claude/pr-watch/poll.mjs
-# or with a custom interval
-OWNER=your-org POLL_INTERVAL=60 node ~/.claude/pr-watch/poll.mjs
+OWNER=your-org POLL_INTERVAL=60 STOP_AT=17:30 node ~/.claude/pr-watch/poll.mjs
+OWNER=your-org HOURS=2 node ~/.claude/pr-watch/poll.mjs
 ```
 
 ## Requirements
