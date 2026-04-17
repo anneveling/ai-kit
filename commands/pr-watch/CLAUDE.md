@@ -17,7 +17,7 @@ The installed version is in the second line of `~/.claude/pr-watch/poll.mjs`:
 ```bash
 head -2 ~/.claude/pr-watch/poll.mjs
 # => #!/usr/bin/env node
-# => // poll.mjs — version 0.9.0
+# => // poll.mjs — version 0.9.1
 ```
 
 To check if an update is available, compare that version against the second line of the raw file at:
