@@ -1,5 +1,6 @@
 #!/usr/bin/env node
-// poll.mjs — version 0.9.2
+// poll.mjs — version 0.9.3
+// source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch
 // Polls GitHub for open PRs you authored or are requested to review.
 // Emits JSON change-event lines to stdout when anything changes.
 // Writes current.json with full current state on every poll.

@@ -1,3 +1,28 @@
+<!-- version: 0.9.3 | source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch -->
+
+## About this command
+
+Installed version: **0.9.3**  
+Source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch
+
+### Checking for updates
+
+The current installed version is on line 2 of `~/.claude/pr-watch/poll.mjs`. The latest version is on line 2 of:
+`https://raw.githubusercontent.com/anneveling/ai-kit/main/commands/pr-watch/poll.mjs`
+
+### Upgrading
+
+If the user asks to upgrade, or if you detect a newer version is available, run:
+
+```bash
+cp ~/.claude/commands/pr-watch.md ~/.claude/commands/pr-watch.md.bak
+curl -fsSL https://raw.githubusercontent.com/anneveling/ai-kit/main/commands/pr-watch/poll.mjs -o ~/.claude/pr-watch/poll.mjs
+curl -fsSL https://raw.githubusercontent.com/anneveling/ai-kit/main/commands/pr-watch/lib.mjs -o ~/.claude/pr-watch/lib.mjs
+curl -fsSL https://raw.githubusercontent.com/anneveling/ai-kit/main/commands/pr-watch/pr-watch.md -o ~/.claude/commands/pr-watch.md
+```
+
+---
+
 Monitor your GitHub PR inbox by running `node ~/.claude/pr-watch/poll.mjs` as a **persistent** Monitor (persistent: true, no timeout). The script auto-stops at 18:00 local time by default. Override with `STOP_AT=17:30` or `HOURS=4` env vars prefixed to the command.
 
 ## Display format
