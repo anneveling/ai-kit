@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// poll.mjs — version 0.9.1
+// poll.mjs — version 0.9.2
 // Polls GitHub for open PRs you authored or are requested to review.
 // Emits JSON change-event lines to stdout when anything changes.
 // Writes current.json with full current state on every poll.
@@ -13,10 +13,10 @@
 //   node poll.mjs --reset
 
 import { execSync } from "child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import { homedir } from "os";
 import { join } from "path";
-import { ciSummary, computeStopTime, diffPr } from "./lib.mjs";
+import { ciSummary, computeEvents, computeStopTime, diffPr } from "./lib.mjs";
 
 // ── Preflight ────────────────────────────────────────────────────────────────
 
@@ -154,54 +154,21 @@ function pollOnce(isFirstRun, me) {
 
   const summaries = fetchSummaries();
   const prevState = loadState();
-  const nextState = {};
-  const events = [];
 
-  for (const summary of summaries) {
-    const { url, updatedAt, role, repository } = summary;
+  const enrichedMap = {};
+  for (const { url, updatedAt, role, repository } of summaries) {
     const repo = repository.nameWithOwner;
     const prev = prevState[url];
-
-    let enriched;
     if (!prev || prev._searchUpdatedAt !== updatedAt) {
-      enriched = enrichPr(url, role, repo, me);
-      if (!enriched) {
-        console.error(`  warn: could not enrich ${url}`);
-        continue;
-      }
-      if (!isFirstRun) {
-        if (!prev) {
-          events.push({
-            event: "new", ts: ts(), repo, pr: enriched.number, title: enriched.title,
-            url, role, reviewDecision: enriched.reviewDecision, isDraft: enriched.isDraft,
-            ciStatus: enriched.ciStatus,
-          });
-        } else {
-          const changes = diffPr(prev, enriched);
-          if (changes) {
-            events.push({
-              event: "changed", ts: ts(), repo, pr: enriched.number, title: enriched.title,
-              url, role, reviewDecision: enriched.reviewDecision, isDraft: enriched.isDraft,
-              ciStatus: enriched.ciStatus, changes,
-            });
-          }
-        }
-      }
+      const enriched = enrichPr(url, role, repo, me);
+      if (!enriched) { console.error(`  warn: could not enrich ${url}`); continue; }
+      enrichedMap[url] = enriched;
     } else {
-      enriched = prev;
-    }
-
-    nextState[url] = { ...enriched, _searchUpdatedAt: updatedAt };
-  }
-
-  if (!isFirstRun) {
-    const currentUrls = new Set(summaries.map((p) => p.url));
-    for (const [url, prev] of Object.entries(prevState)) {
-      if (!currentUrls.has(url)) {
-        events.push({ event: "closed", ts: ts(), repo: prev.repo, pr: prev.number, title: prev.title, url, role: prev.role });
-      }
+      enrichedMap[url] = prev;
     }
   }
+
+  const { nextState, events } = computeEvents(summaries, enrichedMap, prevState, isFirstRun);
 
   saveState(nextState);
   saveCurrent(Object.values(nextState));
@@ -228,7 +195,9 @@ console.error(`PR poller | ${OWNER ? `org=${OWNER}` : "all orgs"} | interval=${P
 console.error(`State: ${STATE_FILE}  Current: ${CURRENT_FILE}`);
 console.error(`Auto-stop: ${stopLabel}`);
 
-let isFirstRun = !existsSync(STATE_FILE) || readFileSync(STATE_FILE, "utf8").trim() === "{}";
+// Always treat startup as first run so stale state from a previous session
+// doesn't trigger spurious new/changed/closed events on day 2.
+let isFirstRun = true;
 
 while (true) {
   const msLeft = STOP_TIME.getTime() - Date.now();

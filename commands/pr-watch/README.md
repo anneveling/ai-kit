@@ -119,3 +119,22 @@ If neither `STOP_AT` nor `HOURS` is set, the poller auto-stops at 18:00 if start
 ---
 
 See [CLAUDE.md](CLAUDE.md) for the full event protocol and advanced options — useful if you're adapting this to a different agent or consuming the event stream yourself.
+
+---
+
+## For maintainers and forkers
+
+> This section is only relevant if you maintain or fork this repo. If you're just using the command, stop here.
+
+The files users install are `pr-watch.md`, `poll.mjs`, and `lib.mjs`. `CLAUDE.md`, `README.md`, `package.json`, `CHANGELOG.md`, and the `test/` directory stay in the repo and are never copied to the user's machine.
+
+**When you change `poll.mjs` or `lib.mjs`:**
+
+1. Bump the version comment on line 2 of `poll.mjs` and the version in `package.json`.
+2. Add an entry to [CHANGELOG.md](CHANGELOG.md).
+3. Re-copy to your own global install so your local copy stays in sync:
+   ```bash
+   cp poll.mjs lib.mjs ~/.claude/pr-watch/
+   ```
+
+The globally-installed copy at `~/.claude/pr-watch/` is independent of the repo — changes are not applied automatically.

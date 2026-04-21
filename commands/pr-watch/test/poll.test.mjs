@@ -1,6 +1,88 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ciSummary, computeStopTime, diffPr } from "../lib.mjs";
+import { ciSummary, computeEvents, computeStopTime, diffPr } from "../lib.mjs";
+
+// ── computeEvents ─────────────────────────────────────────────────────────────
+
+// Shared fixtures
+const URL1 = "https://github.com/acme/repo/pull/1";
+const URL2 = "https://github.com/acme/repo/pull/2";
+const now = new Date("2024-01-15T14:00:00Z");
+
+function makePr(url, overrides = {}) {
+  return {
+    number: 1, title: "Fix bug", url, repo: "acme/repo", role: "author",
+    reviewDecision: "REVIEW_REQUIRED", isDraft: false, ciStatus: "SUCCESS",
+    latestReviews: [], _searchUpdatedAt: "2024-01-14T10:00:00Z",
+    ...overrides,
+  };
+}
+
+function makeSummary(url, updatedAt = "2024-01-15T09:00:00Z") {
+  return { url, updatedAt, role: "author", repository: { nameWithOwner: "acme/repo" } };
+}
+
+// Day-2 startup: existing state, isFirstRun=false (simulates the old buggy behavior)
+test("computeEvents: isFirstRun=false with stale prevState fires spurious events (demonstrates the bug)", () => {
+  const prev = makePr(URL1, { _searchUpdatedAt: "2024-01-14T10:00:00Z" });
+  const enriched = makePr(URL1, { ciStatus: "FAILURE", _searchUpdatedAt: "2024-01-15T09:00:00Z" });
+  const summaries = [makeSummary(URL1)];
+  const enrichedMap = { [URL1]: enriched };
+  const prevState = { [URL1]: prev };
+
+  const { events } = computeEvents(summaries, enrichedMap, prevState, false, now);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].event, "changed");
+});
+
+// Day-2 startup: same scenario but isFirstRun=true (the fix) — no events
+test("computeEvents: isFirstRun=true suppresses all events on startup regardless of stale prevState", () => {
+  const prev = makePr(URL1, { _searchUpdatedAt: "2024-01-14T10:00:00Z" });
+  const enriched = makePr(URL1, { ciStatus: "FAILURE", _searchUpdatedAt: "2024-01-15T09:00:00Z" });
+  const summaries = [makeSummary(URL1)];
+  const enrichedMap = { [URL1]: enriched };
+  const prevState = { [URL1]: prev };
+
+  const { events } = computeEvents(summaries, enrichedMap, prevState, true, now);
+  assert.equal(events.length, 0);
+});
+
+// Day-2 startup: closed PRs in stale state should also be suppressed
+test("computeEvents: isFirstRun=true suppresses closed events for PRs absent from current summaries", () => {
+  const prev = makePr(URL1);
+  const summaries = []; // PR not in current results
+  const { events } = computeEvents(summaries, {}, { [URL1]: prev }, true, now);
+  assert.equal(events.length, 0);
+});
+
+// Normal poll (not first run): new PR appears → "new" event
+test("computeEvents: isFirstRun=false emits new event for PR absent from prevState", () => {
+  const enriched = makePr(URL1);
+  const summaries = [makeSummary(URL1)];
+  const { events } = computeEvents(summaries, { [URL1]: enriched }, {}, false, now);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].event, "new");
+  assert.equal(events[0].url, URL1);
+});
+
+// Normal poll: PR disappears → "closed" event
+test("computeEvents: isFirstRun=false emits closed event for PR absent from current summaries", () => {
+  const prev = makePr(URL1);
+  const summaries = [];
+  const { events } = computeEvents(summaries, {}, { [URL1]: prev }, false, now);
+  assert.equal(events.length, 1);
+  assert.equal(events[0].event, "closed");
+  assert.equal(events[0].url, URL1);
+});
+
+// nextState is always populated regardless of isFirstRun
+test("computeEvents: nextState always reflects current enriched PRs", () => {
+  const enriched = makePr(URL1);
+  const summaries = [makeSummary(URL1)];
+  const { nextState } = computeEvents(summaries, { [URL1]: enriched }, {}, true, now);
+  assert.ok(nextState[URL1]);
+  assert.equal(nextState[URL1]._searchUpdatedAt, "2024-01-15T09:00:00Z");
+});
 
 // ── ciSummary ─────────────────────────────────────────────────────────────────
 

@@ -10,6 +10,37 @@ This file is the authoritative reference for installing, configuring, and operat
 | `poll.mjs` | Node.js poller — copy to `~/.claude/pr-watch/` |
 | `lib.mjs` | Pure functions used by `poll.mjs` — copy to `~/.claude/pr-watch/` |
 
+## Maintainer workflow (repo owner / forkers only)
+
+This section applies only when making changes to the source files in this repo.
+
+### Making changes
+
+1. **Create a branch** — never commit fixes or features directly to `main`. Open a PR so the change is reviewed and the diff is in the git history.
+2. **Run tests** before marking the PR ready:
+   ```bash
+   node --test test/poll.test.mjs
+   ```
+   All tests must pass. If you add behaviour, add a test for it.
+3. **Bump the version** — update the comment on line 2 of `poll.mjs` and the `version` field in `package.json`.
+4. **Add a CHANGELOG entry** — document what changed and why in `CHANGELOG.md`.
+5. **Merge the PR** to `main`.
+
+### After merging — syncing the global install
+
+The globally-installed copy at `~/.claude/pr-watch/` is independent of the repo. It is not updated automatically when a PR merges.
+
+Once the PR is merged and the new version is live on `main`, ask the user (or offer to do it for them):
+
+> "Version X.Y.Z is now on GitHub. Want me to sync your local `~/.claude/pr-watch/` install, or would you prefer to test the upgrade path yourself first?"
+
+This is a maintainer-only step. Do not offer it to regular users of the command.
+
+To sync:
+```bash
+cp poll.mjs lib.mjs ~/.claude/pr-watch/
+```
+
 ## Checking for updates
 
 The installed version is in the second line of `~/.claude/pr-watch/poll.mjs`:
