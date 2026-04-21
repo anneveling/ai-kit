@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.3 (2026-04-21)
+
+**Upgrade discovery**
+
+Added version and source URL metadata to `pr-watch.md` so Claude can answer upgrade questions from any session — including the installed version, how to check for a newer one, and the exact commands to upgrade. Added source URL comment to `poll.mjs` for humans who inspect the file directly.
+
 ## 0.9.2 (2026-04-21)
 
 **Bug fix: spurious events on day-2 startup**
