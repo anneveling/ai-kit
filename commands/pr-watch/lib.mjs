@@ -35,7 +35,7 @@ export function computeEvents(summaries, enrichedMap, prevState, isFirstRun, now
   const events = [];
   const nextState = {};
 
-  for (const { url, updatedAt } of summaries) {
+  for (const { url } of summaries) {
     const enriched = enrichedMap[url];
     if (!enriched) continue;
     const prev = prevState[url];
@@ -57,7 +57,7 @@ export function computeEvents(summaries, enrichedMap, prevState, isFirstRun, now
       }
     }
 
-    nextState[url] = { ...enriched, _searchUpdatedAt: updatedAt };
+    nextState[url] = { ...enriched, _searchUpdatedAt: enriched.updatedAt };
   }
 
   if (!isFirstRun && Object.keys(prevState).length > 0) {
