@@ -13,7 +13,7 @@ function makePr(url, overrides = {}) {
   return {
     number: 1, title: "Fix bug", url, repo: "acme/repo", role: "author",
     reviewDecision: "REVIEW_REQUIRED", isDraft: false, ciStatus: "SUCCESS",
-    latestReviews: [], _searchUpdatedAt: "2024-01-14T10:00:00Z",
+    latestReviews: [], updatedAt: "2024-01-15T09:00:00Z", _searchUpdatedAt: "2024-01-14T10:00:00Z",
     ...overrides,
   };
 }

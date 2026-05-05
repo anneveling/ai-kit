@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// poll.mjs — version 0.9.3
+// poll.mjs — version 0.9.6
 // source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch
 // Polls GitHub for open PRs you authored or are requested to review.
 // Emits JSON change-event lines to stdout when anything changes.
@@ -71,8 +71,8 @@ const warnedAt = new Set();
 
 // ── GitHub field lists ────────────────────────────────────────────────────────
 
-const SEARCH_FIELDS = "number,title,url,repository,author,isDraft,updatedAt,state";
-const VIEW_FIELDS = "number,title,url,author,isDraft,reviewDecision,statusCheckRollup,reviews,reviewRequests,state,createdAt";
+const SEARCH_FIELDS = "number,title,url,repository,author,isDraft,state";
+const VIEW_FIELDS = "number,title,url,author,isDraft,reviewDecision,statusCheckRollup,reviews,reviewRequests,state,createdAt,updatedAt";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -96,12 +96,16 @@ function emit(event) {
 
 function fetchSummaries() {
   const ownerFlag = OWNER ? `--owner ${OWNER}` : "";
-  const mine   = gh(`search prs --state open --author @me ${ownerFlag} --json "${SEARCH_FIELDS}" --limit 100`) ?? [];
-  const review = gh(`search prs --state open --review-requested @me ${ownerFlag} --json "${SEARCH_FIELDS}" --limit 100`) ?? [];
+  const mine        = gh(`search prs --state open --author @me ${ownerFlag} --json "${SEARCH_FIELDS}" --limit 100`) ?? [];
+  const review      = gh(`search prs --state open --review-requested @me ${ownerFlag} --json "${SEARCH_FIELDS}" --limit 100`) ?? [];
+  // PRs where you've already submitted a review drop off --review-requested.
+  // Include reviewed-by so they stay tracked until truly closed.
+  const reviewed    = gh(`search prs --state open --reviewed-by @me ${ownerFlag} --json "${SEARCH_FIELDS}" --limit 100`) ?? [];
 
   const byUrl = new Map();
-  for (const pr of mine)   byUrl.set(pr.url, { ...pr, role: "author" });
-  for (const pr of review) if (!byUrl.has(pr.url)) byUrl.set(pr.url, { ...pr, role: "reviewer" });
+  for (const pr of mine)     byUrl.set(pr.url, { ...pr, role: "author" });
+  for (const pr of review)   if (!byUrl.has(pr.url)) byUrl.set(pr.url, { ...pr, role: "reviewer" });
+  for (const pr of reviewed) if (!byUrl.has(pr.url)) byUrl.set(pr.url, { ...pr, role: "reviewer" });
   return Array.from(byUrl.values());
 }
 
@@ -156,17 +160,28 @@ function pollOnce(isFirstRun, me) {
   const summaries = fetchSummaries();
   const prevState = loadState();
 
-  const enrichedMap = {};
-  for (const { url, updatedAt, role, repository } of summaries) {
-    const repo = repository.nameWithOwner;
-    const prev = prevState[url];
-    if (!prev || prev._searchUpdatedAt !== updatedAt) {
-      const enriched = enrichPr(url, role, repo, me);
-      if (!enriched) { console.error(`  warn: could not enrich ${url}`); continue; }
-      enrichedMap[url] = enriched;
-    } else {
-      enrichedMap[url] = prev;
+  // `--review-requested @me` drops a PR once you submit a review, even if it's
+  // still open and awaiting the author's response. Re-add any dropped PR that's
+  // actually still open so it stays tracked until truly closed/merged.
+  if (!isFirstRun) {
+    const summaryUrls = new Set(summaries.map((s) => s.url));
+    for (const [url, prev] of Object.entries(prevState)) {
+      if (!summaryUrls.has(url)) {
+        const actual = gh(`pr view "${url}" --json state`);
+        if (actual?.state === "OPEN") {
+          console.error(`  keeping ${url} (still open, dropped from search)`);
+          summaries.push({ url, role: prev.role, repository: { nameWithOwner: prev.repo } });
+        }
+      }
     }
+  }
+
+  const enrichedMap = {};
+  for (const { url, role, repository } of summaries) {
+    const repo = repository.nameWithOwner;
+    const enriched = enrichPr(url, role, repo, me);
+    if (!enriched) { console.error(`  warn: could not enrich ${url}`); continue; }
+    enrichedMap[url] = enriched;
   }
 
   const { nextState, events } = computeEvents(summaries, enrichedMap, prevState, isFirstRun);
