@@ -1,8 +1,8 @@
-<!-- version: 0.9.6 | source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch -->
+<!-- version: 0.11.0 | source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch -->
 
 ## About this command
 
-Installed version: **0.9.6**  
+Installed version: **0.11.0**  
 Source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch
 
 ### Checking for updates
@@ -18,8 +18,21 @@ If the user asks to upgrade, or if you detect a newer version is available, run:
 cp ~/.claude/commands/pr-watch.md ~/.claude/commands/pr-watch.md.bak
 curl -fsSL https://raw.githubusercontent.com/anneveling/ai-kit/main/commands/pr-watch/poll.mjs -o ~/.claude/pr-watch/poll.mjs
 curl -fsSL https://raw.githubusercontent.com/anneveling/ai-kit/main/commands/pr-watch/lib.mjs -o ~/.claude/pr-watch/lib.mjs
+curl -fsSL https://raw.githubusercontent.com/anneveling/ai-kit/main/commands/pr-watch/index.html -o ~/.claude/pr-watch/index.html
+curl -fsSL https://raw.githubusercontent.com/anneveling/ai-kit/main/commands/pr-watch/styles.css -o ~/.claude/pr-watch/styles.css
+curl -fsSL https://raw.githubusercontent.com/anneveling/ai-kit/main/commands/pr-watch/app.js -o ~/.claude/pr-watch/app.js
 curl -fsSL https://raw.githubusercontent.com/anneveling/ai-kit/main/commands/pr-watch/pr-watch.md -o ~/.claude/commands/pr-watch.md
 ```
+
+---
+
+## Two modes
+
+**Mode 1 — Claude inbox (you are here):** `/pr-watch` runs the poller via Claude's Monitor tool. Claude renders a structured inbox on every change event and tells the user what needs their attention and what to do next. The browser dashboard also opens automatically.
+
+**Mode 2 — Standalone browser dashboard:** The user can run `node ~/.claude/pr-watch/poll.mjs` directly from a terminal without opening Claude at all. The browser dashboard at `http://localhost:7654` updates live. Zero Claude tokens — use this for ambient monitoring while working elsewhere.
+
+If the user says "just run the dashboard" or wants to watch PRs without a Claude session, tell them to run the poller directly. If they want the full interactive Claude experience, they should use `/pr-watch`.
 
 ---
 
