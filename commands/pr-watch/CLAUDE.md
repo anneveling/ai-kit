@@ -9,6 +9,9 @@ This file is the authoritative reference for installing, configuring, and operat
 | `pr-watch.md` | Claude Code slash command — copy to `~/.claude/commands/` |
 | `poll.mjs` | Node.js poller — copy to `~/.claude/pr-watch/` |
 | `lib.mjs` | Pure functions used by `poll.mjs` — copy to `~/.claude/pr-watch/` |
+| `index.html` | Dashboard HTML shell — copy to `~/.claude/pr-watch/` |
+| `styles.css` | Dashboard stylesheet — copy to `~/.claude/pr-watch/` |
+| `app.js` | Dashboard frontend logic — copy to `~/.claude/pr-watch/` |
 
 ## Maintainer workflow (repo owner / forkers only)
 
@@ -61,7 +64,7 @@ To update, re-run the installation steps below.
 ```bash
 cp pr-watch.md ~/.claude/commands/pr-watch.md
 mkdir -p ~/.claude/pr-watch
-cp poll.mjs lib.mjs ~/.claude/pr-watch/
+cp poll.mjs lib.mjs index.html styles.css app.js ~/.claude/pr-watch/
 ```
 
 ## Invoking the command
@@ -79,6 +82,8 @@ OWNER=your-org node ~/.claude/pr-watch/poll.mjs
 OWNER=your-org POLL_INTERVAL=60 node ~/.claude/pr-watch/poll.mjs
 OWNER=your-org STOP_AT=17:30 node ~/.claude/pr-watch/poll.mjs
 OWNER=your-org HOURS=4 node ~/.claude/pr-watch/poll.mjs
+PR_WATCH_PORT=8000 node ~/.claude/pr-watch/poll.mjs
+PR_WATCH_NO_DASHBOARD=1 node ~/.claude/pr-watch/poll.mjs
 OWNER=your-org node ~/.claude/pr-watch/poll.mjs --reset
 ```
 
@@ -93,6 +98,9 @@ No env vars are required. With `gh` authenticated the poller watches all orgs th
 | `STOP_AT` | — | Stop at a wall-clock time, e.g. `17:30` (local time) |
 | `HOURS` | — | Stop after N hours, e.g. `4` |
 | `STATE_DIR` | `~/.claude/pr-watch` | Directory for `state.json` and `current.json` |
+| `PR_WATCH_PORT` | `7654` | HTTP port for the browser dashboard |
+| `PR_WATCH_NO_DASHBOARD` | — | Set to `1` to disable the dashboard server entirely |
+| `PR_WATCH_NO_OPEN` | — | Set to `1` to start the server without opening the browser |
 
 Stop time precedence: `HOURS` > `STOP_AT` > default (18:00 if started 07:00–18:00, else +4h).
 
@@ -171,7 +179,19 @@ Emitted immediately before the process exits at stop time.
 | File | Description |
 |---|---|
 | `$STATE_DIR/state.json` | Full enriched PR data keyed by URL, used for change detection between polls |
-| `$STATE_DIR/current.json` | Array of current open PRs — read this to render the inbox |
+| `$STATE_DIR/current.json` | Versioned payload with current open PRs — read this to render the inbox |
+
+`current.json` has this envelope (schemaVersion is enforced by the dashboard):
+
+```json
+{
+  "schemaVersion": 1,
+  "pollerVersion": "0.10.0",
+  "viewer": "your-github-login",
+  "generatedAt": "2024-01-15T14:23:00Z",
+  "prs": [ ... ]
+}
+```
 
 The command reads `current.json` on every event to build the display. `state.json` is internal to the poller.
 

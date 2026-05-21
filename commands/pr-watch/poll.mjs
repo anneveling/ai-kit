@@ -1,9 +1,14 @@
 #!/usr/bin/env node
-// poll.mjs — version 0.9.6
+// poll.mjs — version 0.11.0
 // source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch
 // Polls GitHub for open PRs you authored or are requested to review.
 // Emits JSON change-event lines to stdout when anything changes.
 // Writes current.json with full current state on every poll.
+// Also serves an ambient dashboard at http://localhost:$PR_WATCH_PORT (default 7654).
+//
+// Two modes:
+//   /pr-watch in Claude  — Claude renders the full interactive inbox via Monitor tool
+//   node poll.mjs        — standalone: browser dashboard only, no Claude session needed
 //
 // Usage:
 //   node poll.mjs
@@ -11,13 +16,22 @@
 //   POLL_INTERVAL=60 node poll.mjs
 //   STOP_AT=17:30 node poll.mjs
 //   HOURS=4 node poll.mjs
+//   PR_WATCH_PORT=8000 node poll.mjs
+//   PR_WATCH_NO_DASHBOARD=1 node poll.mjs
+//   PR_WATCH_NO_OPEN=1 node poll.mjs
 //   node poll.mjs --reset
 
-import { execSync } from "child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "fs";
+import { execSync, spawn } from "child_process";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { createServer } from "http";
 import { homedir } from "os";
-import { join } from "path";
-import { ciSummary, computeEvents, computeStopTime, diffPr } from "./lib.mjs";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
+import { buildPayload, ciSummary, computeEvents, computeStopTime, diffPr } from "./lib.mjs";
+
+const SCHEMA_VERSION = 1;
+const POLLER_VERSION = "0.11.0";
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 
 // ── Preflight ────────────────────────────────────────────────────────────────
 
@@ -57,6 +71,8 @@ preflight();
 
 const OWNER = process.env.OWNER;
 const POLL_INTERVAL = parseInt(process.env.POLL_INTERVAL ?? "120", 10);
+const DASHBOARD_PORT = parseInt(process.env.PR_WATCH_PORT ?? "7654", 10);
+const DASHBOARD_ENABLED = !process.env.PR_WATCH_NO_DASHBOARD;
 
 const STATE_DIR = process.env.STATE_DIR ?? join(homedir(), ".claude", "pr-watch");
 mkdirSync(STATE_DIR, { recursive: true });
@@ -148,8 +164,123 @@ function saveState(state) {
   writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 }
 
-function saveCurrent(prs) {
-  writeFileSync(CURRENT_FILE, JSON.stringify(prs, null, 2));
+function saveCurrent(prs, viewer) {
+  const payload = buildPayload(prs, viewer, { schemaVersion: SCHEMA_VERSION, pollerVersion: POLLER_VERSION });
+  writeFileSync(CURRENT_FILE, JSON.stringify(payload, null, 2));
+  broadcastDashboard(payload);
+}
+
+// ── Dashboard server ─────────────────────────────────────────────────────────
+
+const INDEX_FILE  = join(SCRIPT_DIR, "index.html");
+const CSS_FILE    = join(SCRIPT_DIR, "styles.css");
+const APP_JS_FILE = join(SCRIPT_DIR, "app.js");
+
+const sseClients = new Set();
+let lastPayloadJson = "null";
+
+function broadcastDashboard(payload) {
+  if (!DASHBOARD_ENABLED) return;
+  lastPayloadJson = JSON.stringify(payload);
+  const msg = `data: ${lastPayloadJson}\n\n`;
+  for (const res of sseClients) {
+    try { res.write(msg); } catch { /* client gone */ }
+  }
+}
+
+function startDashboard(viewer) {
+  if (!DASHBOARD_ENABLED) return;
+
+  const missing = ["index.html", "styles.css", "app.js"].filter((f) => !existsSync(join(SCRIPT_DIR, f)));
+  if (missing.length > 0) {
+    console.error(`pr-watch: dashboard files missing (${missing.join(", ")}) — browser dashboard disabled.`);
+    console.error(`  Re-run installation to add them, or set PR_WATCH_NO_DASHBOARD=1 to silence this.`);
+    return;
+  }
+
+  try {
+    lastPayloadJson = readFileSync(CURRENT_FILE, "utf8");
+  } catch { /* no prior payload yet */ }
+
+  const server = createServer((req, res) => {
+    if (req.method !== "GET") { res.writeHead(404); res.end(); return; }
+    try {
+      if (req.url === "/") {
+        res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+        res.end(readFileSync(INDEX_FILE, "utf8"));
+        return;
+      }
+      if (req.url === "/styles.css") {
+        res.writeHead(200, { "Content-Type": "text/css; charset=utf-8" });
+        res.end(readFileSync(CSS_FILE, "utf8"));
+        return;
+      }
+      if (req.url === "/app.js") {
+        res.writeHead(200, { "Content-Type": "text/javascript; charset=utf-8" });
+        res.end(readFileSync(APP_JS_FILE, "utf8"));
+        return;
+      }
+      if (req.url === "/current.json") {
+        res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+        res.end(lastPayloadJson);
+        return;
+      }
+      if (req.url === "/stream") {
+        res.writeHead(200, {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive",
+        });
+        res.write(`data: ${lastPayloadJson}\n\n`);
+        sseClients.add(res);
+        req.on("close", () => sseClients.delete(res));
+        return;
+      }
+    } catch (err) {
+      res.writeHead(500);
+      res.end(`dashboard error: ${err.message}`);
+      return;
+    }
+    res.writeHead(404);
+    res.end();
+  });
+
+  server.on("error", (err) => {
+    if (err.code === "EADDRINUSE") {
+      console.error(`pr-watch: port ${DASHBOARD_PORT} already in use — dashboard disabled. Set PR_WATCH_PORT to a free port, or PR_WATCH_NO_DASHBOARD=1 to silence this.`);
+      return;
+    }
+    console.error(`pr-watch: dashboard server error: ${err.message}`);
+  });
+
+  server.listen(DASHBOARD_PORT, () => {
+    const url = `http://localhost:${DASHBOARD_PORT}`;
+    console.error("");
+    console.error(`  ┌─ pr-watch dashboard ─────────────────────────────`);
+    console.error(`  │  ${url}`);
+    console.error(`  │  (viewer: ${viewer})`);
+    console.error(`  └──────────────────────────────────────────────────`);
+    console.error("");
+    openBrowser(url);
+  });
+}
+
+function openBrowser(url) {
+  if (process.env.PR_WATCH_NO_OPEN) return;
+  // Skip when there's clearly no GUI (CI, SSH sessions without display forwarding).
+  if (process.env.CI) return;
+  if (process.platform === "linux" && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) return;
+
+  const cmd = process.platform === "darwin" ? "open"
+    : process.platform === "win32" ? "cmd"
+    : "xdg-open";
+  const args = process.platform === "win32" ? ["/c", "start", "", url] : [url];
+
+  try {
+    const child = spawn(cmd, args, { detached: true, stdio: "ignore" });
+    child.on("error", () => { /* opener missing — silent */ });
+    child.unref();
+  } catch { /* silent */ }
 }
 
 // ── Poll ──────────────────────────────────────────────────────────────────────
@@ -180,14 +311,18 @@ function pollOnce(isFirstRun, me) {
   for (const { url, role, repository } of summaries) {
     const repo = repository.nameWithOwner;
     const enriched = enrichPr(url, role, repo, me);
-    if (!enriched) { console.error(`  warn: could not enrich ${url}`); continue; }
+    if (!enriched) {
+      console.error(`  warn: could not enrich ${url}, keeping previous state`);
+      if (prevState[url]) enrichedMap[url] = prevState[url];
+      continue;
+    }
     enrichedMap[url] = enriched;
   }
 
   const { nextState, events } = computeEvents(summaries, enrichedMap, prevState, isFirstRun);
 
   saveState(nextState);
-  saveCurrent(Object.values(nextState));
+  saveCurrent(Object.values(nextState), me);
   for (const event of events) emit(event);
 
   if (isFirstRun) {
@@ -201,7 +336,7 @@ function pollOnce(isFirstRun, me) {
 
 if (process.argv.includes("--reset")) {
   writeFileSync(STATE_FILE, "{}");
-  writeFileSync(CURRENT_FILE, "[]");
+  writeFileSync(CURRENT_FILE, JSON.stringify(buildPayload([], null, { schemaVersion: SCHEMA_VERSION, pollerVersion: POLLER_VERSION }), null, 2));
   console.error("State reset.");
   process.exit(0);
 }
@@ -210,6 +345,8 @@ const me = execSync("gh api user --jq '.login'", { encoding: "utf8" }).trim();
 console.error(`PR poller | ${OWNER ? `org=${OWNER}` : "all orgs"} | interval=${POLL_INTERVAL}s | user=${me}`);
 console.error(`State: ${STATE_FILE}  Current: ${CURRENT_FILE}`);
 console.error(`Auto-stop: ${stopLabel}`);
+
+startDashboard(me);
 
 // Always treat startup as first run so stale state from a previous session
 // doesn't trigger spurious new/changed/closed events on day 2.

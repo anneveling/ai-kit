@@ -1,5 +1,15 @@
 // Pure functions — no side effects, fully testable.
 
+export function buildPayload(prs, viewer, { schemaVersion, pollerVersion }) {
+  return {
+    schemaVersion,
+    pollerVersion,
+    viewer,
+    generatedAt: new Date().toISOString(),
+    prs,
+  };
+}
+
 export function ciSummary(checkRollup) {
   if (!checkRollup?.length) return null;
   const states = checkRollup.map((c) => c.status ?? c.conclusion ?? "PENDING");

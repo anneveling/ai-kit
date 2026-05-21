@@ -1,6 +1,32 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ciSummary, computeEvents, computeStopTime, diffPr } from "../lib.mjs";
+import { buildPayload, ciSummary, computeEvents, computeStopTime, diffPr } from "../lib.mjs";
+
+// ── buildPayload ──────────────────────────────────────────────────────────────
+
+const META = { schemaVersion: 1, pollerVersion: "0.11.0" };
+
+test("buildPayload: returns correct envelope shape", () => {
+  const prs = [{ url: "https://github.com/a/b/pull/1" }];
+  const payload = buildPayload(prs, "alice", META);
+  assert.equal(payload.schemaVersion, 1);
+  assert.equal(payload.pollerVersion, "0.11.0");
+  assert.equal(payload.viewer, "alice");
+  assert.match(payload.generatedAt, /^\d{4}-\d{2}-\d{2}T/);
+  assert.deepEqual(payload.prs, prs);
+});
+
+test("buildPayload: accepts empty prs and null viewer (reset case)", () => {
+  const payload = buildPayload([], null, META);
+  assert.deepEqual(payload.prs, []);
+  assert.equal(payload.viewer, null);
+});
+
+test("buildPayload: schemaVersion and pollerVersion come from the meta argument", () => {
+  const payload = buildPayload([], "bob", { schemaVersion: 2, pollerVersion: "1.0.0" });
+  assert.equal(payload.schemaVersion, 2);
+  assert.equal(payload.pollerVersion, "1.0.0");
+});
 
 // ── computeEvents ─────────────────────────────────────────────────────────────
 

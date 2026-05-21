@@ -2,9 +2,13 @@
 
 You're in the middle of deep work. Somewhere, a reviewer just left feedback on your PR — or CI went red — or someone's PR is waiting on you. You won't find out until you remember to check.
 
-`pr-watch` is a Claude Code command that watches all your open pull requests and interrupts you only when something actually needs your attention. Run `/pr-watch` once and it shows you a live inbox: who's waiting on you, who you're waiting on, how long things have been stuck, and what to do next.
+`pr-watch` watches all your open pull requests and surfaces changes — review decisions, CI status, who's waiting on whom — without burning tokens when nothing is happening. A plain Node.js process does the polling entirely outside of Claude.
 
-**The catch:** most PR monitoring tools either spam you with noise or cost tokens just to tell you nothing changed. `pr-watch` uses a different approach — a plain Node.js process does the watching in the background, entirely outside of Claude. When nothing changes, nothing happens. No polling prompts, no background inference, zero token cost. Claude only wakes up when there's actually something to render.
+## Two modes
+
+### With Claude (`/pr-watch`)
+
+Run `/pr-watch` in a Claude Code session. Claude starts the poller as a background Monitor and renders a structured inbox every time something changes: who needs your attention, what the next action is, and which skill to run (`/review-pr`, `/review-comments`). The browser dashboard also opens automatically alongside it.
 
 ```
 poll.mjs (Node, no tokens)          Claude
@@ -15,9 +19,29 @@ CI status changed!        ───────►  wakes up, renders update, as
 polls GitHub every 2 min  ───────►  (sleeping — zero tokens)
 ```
 
-Auto-stops at 18:00 by default so you never accidentally leave it running overnight.
+### Standalone (browser dashboard only)
 
-## Example output
+Run the poller directly from a terminal — no Claude session needed:
+
+```bash
+node ~/.claude/pr-watch/poll.mjs
+```
+
+The browser dashboard opens at `http://localhost:7654` and updates live via Server-Sent Events. Zero token cost. Use this for ambient monitoring while you work elsewhere — just glance at the tab when you feel like it.
+
+---
+
+Both modes auto-stop at 18:00 by default so you never accidentally leave a session running overnight.
+
+## Dashboard
+
+![pr-watch browser dashboard](docs/dashboard.png)
+
+The browser dashboard opens automatically at `http://localhost:7654` when you start pr-watch. **YOUR TURN** (top) shows the PRs that need your action as white cards — each with the author avatar, Linear ticket link, CI status, review state, and age. **WAITING** (bottom) shows the PRs where the ball is in someone else's court as compact dark rows. Columns are grouped by repo. A blue dot marks any PR that changed in the latest poll.
+
+The dashboard updates live via Server-Sent Events — no page refresh needed. It is purely ambient: run `/pr-watch` in Claude for the full interactive inbox, or start `node poll.mjs` standalone and just watch the browser tab.
+
+## Example output (Claude inbox)
 
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -113,6 +137,9 @@ Optional env vars for tuning:
 | `POLL_INTERVAL` | `120` | Seconds between polls |
 | `STOP_AT` | — | Stop at a specific time today, e.g. `17:30` |
 | `HOURS` | — | Stop after N hours, e.g. `4` |
+| `PR_WATCH_PORT` | `7654` | HTTP port for the browser dashboard |
+| `PR_WATCH_NO_DASHBOARD` | — | Set to `1` to disable the dashboard server |
+| `PR_WATCH_NO_OPEN` | — | Set to `1` to start the server without opening the browser |
 
 If neither `STOP_AT` nor `HOURS` is set, the poller auto-stops at 18:00 if started during working hours (07:00–18:00), otherwise runs for 4 hours.
 
@@ -126,15 +153,15 @@ See [CLAUDE.md](CLAUDE.md) for the full event protocol and advanced options — 
 
 > This section is only relevant if you maintain or fork this repo. If you're just using the command, stop here.
 
-The files users install are `pr-watch.md`, `poll.mjs`, and `lib.mjs`. `CLAUDE.md`, `README.md`, `package.json`, `CHANGELOG.md`, and the `test/` directory stay in the repo and are never copied to the user's machine.
+The files users install are `pr-watch.md`, `poll.mjs`, `lib.mjs`, `index.html`, `styles.css`, and `app.js`. `CLAUDE.md`, `README.md`, `package.json`, `CHANGELOG.md`, and the `test/` directory stay in the repo and are never copied to the user's machine.
 
-**When you change `poll.mjs` or `lib.mjs`:**
+**When you change any of the installed files:**
 
 1. Bump the version comment on line 2 of `poll.mjs` and the version in `package.json`.
 2. Add an entry to [CHANGELOG.md](CHANGELOG.md).
 3. Re-copy to your own global install so your local copy stays in sync:
    ```bash
-   cp poll.mjs lib.mjs ~/.claude/pr-watch/
+   cp poll.mjs lib.mjs index.html styles.css app.js ~/.claude/pr-watch/
    ```
 
 The globally-installed copy at `~/.claude/pr-watch/` is independent of the repo — changes are not applied automatically.

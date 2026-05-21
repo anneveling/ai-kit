@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PR Watch</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div id="header">
+    <h1>PR WATCH</h1>
+    <span id="bic-count">0 your turn</span>
+    <span id="updated-ago" class="muted">↻ --:-- (just now)</span>
+    <span id="change-legend" class="muted"><span class="header-delta-dot"></span>0 changed in latest update</span>
+    <span class="filler"></span>
+  </div>
+
+  <div id="top-lane">
+    <div class="lane-header" id="top-lane-header">
+      <img id="viewer-avatar" alt="" />
+      <span id="top-lane-label">YOUR TURN (0)</span>
+    </div>
+    <div class="cols" id="top-cols"></div>
+  </div>
+  <div class="divider-label">▔ waiting on others ▔</div>
+  <div id="bottom-lane">
+    <div class="lane-header" id="bottom-lane-header">WAITING (0)</div>
+    <div class="cols" id="bottom-cols"></div>
+  </div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
