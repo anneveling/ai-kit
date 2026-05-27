@@ -30,6 +30,15 @@ export function diffPr(prev, enriched) {
   if (prev.ciStatus !== enriched.ciStatus)
     changes.ciStatus = { from: prev.ciStatus, to: enriched.ciStatus };
 
+  // GitHub computes mergeable/mergeStateStatus async — first poll after a push
+  // often returns UNKNOWN, then settles. Ignore transitions involving UNKNOWN
+  // so we don't fire spurious "changed" events during the flicker.
+  const settled = (a, b) => a !== "UNKNOWN" && b !== "UNKNOWN" && a !== b;
+  if (settled(prev.mergeable, enriched.mergeable))
+    changes.mergeable = { from: prev.mergeable, to: enriched.mergeable };
+  if (settled(prev.mergeStateStatus, enriched.mergeStateStatus))
+    changes.mergeStateStatus = { from: prev.mergeStateStatus, to: enriched.mergeStateStatus };
+
   const prevReviewSig = JSON.stringify((prev.latestReviews     ?? []).map((r) => `${r.login}:${r.state}`).sort());
   const nextReviewSig = JSON.stringify((enriched.latestReviews ?? []).map((r) => `${r.login}:${r.state}`).sort());
   if (prevReviewSig !== nextReviewSig)
@@ -81,6 +90,198 @@ export function computeEvents(summaries, enrichedMap, prevState, isFirstRun, now
   }
 
   return { nextState, events };
+}
+
+// ── Per-PR computations (used by the dashboard, exported for tests) ──────────
+
+// Latest non-DISMISSED review by `me` on this PR, or null.
+export function latestMyReview(pr, me) {
+  const mine = (pr.reviews || [])
+    .filter((r) => r.author && r.author.login === me && r.state !== "DISMISSED")
+    .sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0));
+  return mine[0] || null;
+}
+
+// Returns a Set of GitHub logins who own the next action on this PR.
+//   draft                                   → author
+//   pending review request                  → that user
+//   blocked (CHANGES_REQUESTED, not re-req) → author (must fix + re-request)
+//   approved + no pending re-request        → author (merge it)
+//   conflicts (mergeStateStatus=DIRTY)      → author
+//   behind main + approved                  → author (rebase to land)
+//   reviewer with no final verdict          → that reviewer (mid-review)
+//   author with no engagement at all        → author (add reviewers)
+export function ballInCourt(pr, me) {
+  const balls = new Set();
+  const authorLogin = pr.author && pr.author.login;
+  if (!authorLogin) return balls;
+
+  if (pr.isDraft) { balls.add(authorLogin); return balls; }
+
+  const pendingReReq = new Set(pr.reviewRequests || []);
+  for (const login of pendingReReq) balls.add(login);
+
+  const blockersUnaddressed = (pr.latestReviews || [])
+    .some((r) => r.state === "CHANGES_REQUESTED" && !pendingReReq.has(r.login));
+  if (blockersUnaddressed) balls.add(authorLogin);
+
+  if (pr.reviewDecision === "APPROVED" && pendingReReq.size === 0) {
+    balls.add(authorLogin);
+  }
+
+  if (pr.mergeStateStatus === "DIRTY") balls.add(authorLogin);
+  if (pr.mergeStateStatus === "BEHIND" && pr.reviewDecision === "APPROVED") {
+    balls.add(authorLogin);
+  }
+
+  // Other reviewers mid-review (COMMENTED, no final verdict, not re-requested).
+  for (const r of pr.latestReviews || []) {
+    if (r.state === "COMMENTED" && !pendingReReq.has(r.login)) balls.add(r.login);
+  }
+
+  // `me` as a tracked reviewer with no final verdict yet.
+  if (me && pr.role === "reviewer") {
+    const my = latestMyReview(pr, me);
+    if (!my || my.state === "COMMENTED" || my.state === "PENDING") balls.add(me);
+  }
+
+  if (
+    (pr.reviewRequests || []).length === 0 &&
+    (pr.latestReviews || []).length === 0 &&
+    pr.reviewDecision !== "APPROVED"
+  ) {
+    balls.add(authorLogin);
+  }
+
+  return balls;
+}
+
+// "Since when has the ball been in `me`'s court", inferred from review and
+// PR timestamps. Returns an ISO timestamp or null when we can't tell.
+export function bicSince(pr, me) {
+  const authorLogin = pr.author && pr.author.login;
+  if (authorLogin === me) {
+    if (pr.reviewDecision === "CHANGES_REQUESTED") {
+      const pendingReReq = new Set(pr.reviewRequests || []);
+      const blocker = (pr.latestReviews || [])
+        .filter((r) => r.state === "CHANGES_REQUESTED" && !pendingReReq.has(r.login))
+        .sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0))[0];
+      if (blocker && blocker.submittedAt) return blocker.submittedAt;
+    }
+    if (pr.reviewDecision === "APPROVED") {
+      const approval = (pr.latestReviews || [])
+        .filter((r) => r.state === "APPROVED")
+        .sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0))[0];
+      if (approval && approval.submittedAt) return approval.submittedAt;
+    }
+    if ((pr.latestReviews || []).length === 0 && (pr.reviewRequests || []).length === 0) {
+      return pr.createdAt || null;
+    }
+  } else if (pr.role === "reviewer") {
+    const my = latestMyReview(pr, me);
+    if (my && my.submittedAt) return my.submittedAt;
+  }
+  return null;
+}
+
+// Number of times a non-author non-bot has filed CHANGES_REQUESTED. Approximates
+// "how many round-trips this PR has had."
+export function bouncesCount(pr) {
+  const authorLogin = pr.author && pr.author.login;
+  return (pr.reviews || []).filter((r) =>
+    r.state === "CHANGES_REQUESTED" &&
+    r.author && r.author.login &&
+    r.author.login !== authorLogin &&
+    !r.author.is_bot
+  ).length;
+}
+
+// Floor-rounded "Nd / Nh / Nm / now" relative to `nowMs`.
+export function ageStr(ts, nowMs = Date.now()) {
+  const ms = nowMs - new Date(ts).getTime();
+  const m = ms / 60000;
+  const h = m / 60;
+  const d = h / 24;
+  if (d >= 1) return Math.floor(d) + "d";
+  if (h >= 1) return Math.floor(h) + "h";
+  if (m >= 1) return Math.floor(m) + "m";
+  return "now";
+}
+
+// Chicken-lifecycle age marker: 🥚 < 1h, 🐣 < 6h, 🐥 < 3d, 🐔 < 7d, 🍗 ≥ 7d.
+export function ageMarker(ts, nowMs = Date.now()) {
+  const ms = nowMs - new Date(ts).getTime();
+  const h = ms / 3600000;
+  const d = h / 24;
+  if (h < 1) return { cls: "age-young",   text: "🥚 " + ageStr(ts, nowMs) };
+  if (h < 6) return { cls: "age-aging",   text: "🐣 " + ageStr(ts, nowMs) };
+  if (d < 3) return { cls: "age-stale",   text: "🐥 " + ageStr(ts, nowMs) };
+  if (d < 7) return { cls: "age-stale",   text: "🐔 " + ageStr(ts, nowMs) };
+  return        { cls: "age-ancient", text: "🍗 " + ageStr(ts, nowMs) };
+}
+
+// CI summary chip.
+export function ciChip(pr) {
+  switch (pr.ciStatus) {
+    case "SUCCESS": return { cls: "green",  text: "✅ CI" };
+    case "FAILURE": return { cls: "red",    text: "❌ CI" };
+    case "PENDING": return { cls: "yellow", text: "⏳ CI" };
+    default: return null;
+  }
+}
+
+// Merge / sync state chip — uses GitHub's mergeStateStatus.
+export function mergeChip(pr) {
+  switch (pr.mergeStateStatus) {
+    case "DIRTY":  return { cls: "red",    text: "🔴 Conflict" };
+    case "BEHIND": return { cls: "yellow", text: "🟠 Behind" };
+    case "CLEAN":
+    case "UNSTABLE":
+    case "BLOCKED":
+    case "HAS_HOOKS":
+      return { cls: "green", text: "🟢 Fresh" };
+    default: return null;
+  }
+}
+
+// CTA chip: review-state summary from `me`'s perspective. Symmetric labels
+// across lanes — top says what's asked of you, bottom says what they're doing.
+export function reviewChip(pr, me) {
+  if (pr.role === "author") {
+    if (pr.reviewDecision === "APPROVED") {
+      return { cls: "green", text: "🟢 Ready to merge" };
+    }
+    if (pr.reviewDecision === "CHANGES_REQUESTED") {
+      const pendingReReq = new Set(pr.reviewRequests || []);
+      const blockersUnaddressed = (pr.latestReviews || [])
+        .some((r) => r.state === "CHANGES_REQUESTED" && !pendingReReq.has(r.login));
+      return blockersUnaddressed
+        ? { cls: "review-changes", text: "🟠 Fix requested" }
+        : { cls: "yellow", text: "🟡 Re-review pending" };
+    }
+    if ((pr.reviewRequests || []).length === 0 && (pr.latestReviews || []).length === 0) {
+      return { cls: "", text: "⚪ Reviewers needed" };
+    }
+    return { cls: "yellow", text: "🟡 In review" };
+  }
+  // Reviewer perspective.
+  const my = latestMyReview(pr, me);
+  if ((pr.reviewRequests || []).includes(me)) {
+    return my
+      ? { cls: "yellow", text: "🟡 Re-review requested" }
+      : { cls: "yellow", text: "🟡 Review requested" };
+  }
+  if (!my) return { cls: "yellow", text: "🟡 Review requested" };
+  if (my.state === "CHANGES_REQUESTED") return { cls: "review-changes", text: "🟠 Author to fix" };
+  if (my.state === "APPROVED") return { cls: "green", text: "🟢 Author to merge" };
+  return { cls: "yellow", text: "🟡 Review in progress" };
+}
+
+// Bottom-lane priority pick: CI red preempts, otherwise the review chip.
+export function priorityChip(pr, me) {
+  const ci = ciChip(pr);
+  if (ci && ci.cls === "red") return ci;
+  return reviewChip(pr, me);
 }
 
 // Accepts env and now as parameters so it can be tested without mocking globals.

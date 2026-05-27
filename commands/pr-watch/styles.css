@@ -228,6 +228,17 @@ a { color: inherit; }
   background: linear-gradient(180deg, #ffffff, #f5f7fb);
   color: #1f2937;
   box-shadow: inset 0 0 0 1px rgba(15,23,42,0.12);
+  position: relative;
+}
+#top-lane .pr .changed-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--blue);
+  box-shadow: 0 0 6px rgba(56,139,253,0.6);
 }
 #top-lane .pr .title a { color: #111827; }
 #top-lane .pr .num { color: #4b5563; }
@@ -260,6 +271,44 @@ a { color: inherit; }
   border: 1px solid rgba(15,23,42,0.18);
   background: #ffffff;
   color: #374151;
+}
+/* CTA chip — left-aligned, same size as the others; raised with a subtle
+   shadow so it reads as the primary signal. Color comes from the existing
+   .cls (yellow/red/green/review-changes). */
+#top-lane .pr .top-card-footer .chip.chip-cta {
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(15,23,42,0.18), 0 0 0 1px rgba(15,23,42,0.06);
+}
+/* Secondary cluster — CI, merge, bounces, age. Right-aligned. */
+#top-lane .pr .top-card-footer .meta-chips {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+#top-lane .pr .top-card-footer .age-marker {
+  font-size: 12px;
+  font-weight: 500;
+  color: #111827;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Bottom-lane stale badge — only shown for ancient PRs (>7d). */
+.stale-warn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #991b1b;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 11px;
+  line-height: 1;
+  cursor: help;
+  flex: 0 0 auto;
 }
 
 #bottom-lane .pr { font-size: 12px; padding: 4px 6px 4px 4px; }

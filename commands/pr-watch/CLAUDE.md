@@ -148,7 +148,7 @@ One or more tracked fields changed on an existing PR. The `changes` object conta
 }
 ```
 
-Tracked change fields: `reviewDecision`, `isDraft`, `ciStatus`, `latestReviews`.
+Tracked change fields: `reviewDecision`, `isDraft`, `ciStatus`, `latestReviews`, `mergeable`, `mergeStateStatus`. Transitions involving `UNKNOWN` for `mergeable`/`mergeStateStatus` are ignored (GitHub computes these async and briefly returns `UNKNOWN` after pushes).
 
 ### `closed`
 
