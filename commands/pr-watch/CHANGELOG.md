@@ -1,5 +1,70 @@
 # Changelog
 
+## 0.12.0 (2026-05-27)
+
+**Feature: per-reviewer ball-in-court, merge status chips, age lifecycle, async poller**
+
+### Ball-in-court rework
+
+The BIC logic is now per-reviewer: each reviewer's position in the PR is evaluated independently. Previously, having one reviewer request changes would pull all other reviewers' PRs out of your court — now each reviewer's ball is tracked separately. This fixes the case where reviewer A requests changes on a PR you haven't reviewed yet, which incorrectly pulled that PR out of your (reviewer B's) court.
+
+Fixes tracked in `ballInCourt()`:
+- Draft PRs: ball goes to author only; all pending review requests are ignored
+- Pending re-request after CHANGES_REQUESTED: ball goes to that reviewer, not author
+- Multi-reviewer: CHANGES_REQUESTED from one reviewer doesn't affect another reviewer's BIC status
+- No engagement yet: ball stays with author so they can assign reviewers
+
+### New dashboard chips
+
+- **🏓 Bounces chip** — counts CHANGES_REQUESTED reviews from non-author non-bots; indicates how many review round-trips a PR has had
+- **Merge state chip** — `🔴 Conflict` (DIRTY), `🟠 Behind` (BEHIND), `🟢 Fresh` (CLEAN/UNSTABLE/BLOCKED/HAS_HOOKS). Hidden when UNKNOWN (GitHub computes this async and flickers after pushes)
+- **Age marker** — chicken lifecycle in the card footer: 🥚 (<1h), 🐣 (1–6h), 🐥 (6h–3d), 🐔 (3–7d), 🍗 (≥7d). BIC duration inferred from review timestamps where possible
+
+### Review chip labels
+
+Symmetric label model — top lane says what's asked of you, bottom lane says what they're doing:
+- `⚪ Reviewers needed` — author with no engagement yet  
+- `🟡 Review requested` / `🟡 Re-review requested` — reviewer (first time vs. re-request)  
+- `🟡 Review in progress` — reviewer, commented but not finalized  
+- `🟠 Fix requested` — author, unaddressed CHANGES_REQUESTED  
+- `🟢 Ready to merge` / `🟢 Author to merge` — approved  
+- `🟡 Re-review pending` / `🟠 Author to fix` — waiting side labels  
+
+The CTA chip is always first (left-aligned) in the card footer; CI/merge/bounces/age chips are right-aligned.
+
+### Poller: async gh() calls
+
+`gh` CLI calls are now spawn-based (async) instead of `execSync`. This keeps the Node.js event loop unblocked while polls are in flight, preventing the browser dashboard from hanging when a poll takes longer than a request timeout.
+
+### Changed-dot placement
+
+The blue "changed" dot now appears absolute in the top-right corner of the card, only when the PR actually changed. Cards that haven't changed reclaim that space for the title.
+
+### Skip-enrichment optimization
+
+PRs whose `updatedAt` matches the previous poll's value are skipped during enrichment (no `gh pr view` call). Only PRs with `mergeStateStatus: UNKNOWN` are always re-fetched (to pick up the settled value). Reduces API calls by ~90% on steady-state polls.
+
+### Cache-Control: no-store
+
+All dashboard static files (HTML, CSS, JS) are served with `Cache-Control: no-store` so a browser tab always loads fresh files after a poller restart.
+
+### UNKNOWN flicker guard
+
+`diffPr()` and the dashboard's `applyPayload()` both ignore transitions involving `UNKNOWN` for `mergeable` and `mergeStateStatus`. GitHub computes these fields asynchronously after pushes and briefly returns `UNKNOWN` before settling, which was causing spurious "changed" events.
+
+### Pure functions promoted to lib.mjs
+
+The following functions are now exported from `lib.mjs` (and no longer duplicated in `app.js`):
+`latestMyReview`, `ballInCourt`, `bicSince`, `bouncesCount`, `ageStr`, `ageMarker`, `ciChip`, `mergeChip`, `reviewChip`, `priorityChip`
+
+`app.js` imports them via ES module `import`. `poll.mjs` now serves `/lib.mjs` so the browser can resolve the import.
+
+### New env vars
+
+`mergeable` and `mergeStateStatus` are now fetched and tracked. These are included in the `VIEW_FIELDS` of `gh pr view` and appear in `current.json`. Tracked-change fields now also include `mergeable` and `mergeStateStatus` (with UNKNOWN guard).
+
+---
+
 ## 0.11.0 (2026-05-20)
 
 **Feature: ambient browser dashboard**

@@ -1,3 +1,9 @@
+import {
+  ballInCourt, bicSince, bouncesCount,
+  ageStr, ageMarker,
+  ciChip, mergeChip, reviewChip, priorityChip,
+} from "./lib.mjs";
+
 // Set from the `viewer` field of the first payload — see applyPayload.
 let GITHUB_USER = null;
 
@@ -6,107 +12,13 @@ function escapeHtml(s) {
     { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]
   ));
 }
+
 function isBIC(pr) {
-  if ((pr.reviewRequests || []).includes(GITHUB_USER)) return true;
-  if (pr.role === "reviewer") {
-    const my = latestMyReview(pr);
-    // If you've already left a final review, it's no longer your ball unless re-requested.
-    if (my && (my.state === "APPROVED" || my.state === "CHANGES_REQUESTED")) return false;
-    // Mid-review (no review yet, or only COMMENTED) — still your ball, even if others
-    // have already approved/requested changes.
-    return true;
-  }
-  // As author, changes were requested and you haven't handed it back yet — your turn.
-  if (pr.role === "author" && pr.reviewDecision === "CHANGES_REQUESTED" && !authorHandedBack(pr)) {
-    return true;
-  }
-  // As author, PR is approved and ready for you to merge.
-  if (pr.role === "author" && pr.reviewDecision === "APPROVED" && !pr.isDraft) {
-    return true;
-  }
-  return false;
+  return ballInCourt(pr, GITHUB_USER).has(GITHUB_USER);
 }
 function extractLinear(title) {
   const m = String(title || "").match(/[A-Z]{2,}-\d+/);
   return m ? m[0] : null;
-}
-function ageStr(ts) {
-  const ms = Date.now() - new Date(ts).getTime();
-  const m = ms / 60000;
-  const h = m / 60;
-  const d = h / 24;
-  if (d >= 1) return Math.floor(d) + "d";
-  if (h >= 1) return Math.floor(h) + "h";
-  if (m >= 1) return Math.floor(m) + "m";
-  return "now";
-}
-function ageWarn(ts) {
-  const d = (Date.now() - new Date(ts).getTime()) / 86400000;
-  if (d > 3) return "🚨";
-  if (d > 1) return "⚠️";
-  return "";
-}
-function ciChip(pr) {
-  switch (pr.ciStatus) {
-    case "SUCCESS": return { cls: "green", text: "✅ CI" };
-    case "FAILURE": return { cls: "red", text: "❌ CI" };
-    case "PENDING": return { cls: "yellow", text: "⏳ CI" };
-    default: return null;
-  }
-}
-function latestMyReview(pr) {
-  const mine = (pr.reviews || [])
-    .filter((r) => r.author && r.author.login === GITHUB_USER)
-    .sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0));
-  return mine[0] || null;
-}
-function myReviewCount(pr) {
-  return (pr.reviews || []).filter((r) => r.author && r.author.login === GITHUB_USER).length;
-}
-function hasRespondedAfterChanges(pr) {
-  const latestChanges = (pr.reviews || [])
-    .filter((r) => r.state === "CHANGES_REQUESTED" && r.author && r.author.login !== GITHUB_USER)
-    .sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0))[0];
-  if (!latestChanges) return false;
-  return (pr.reviews || []).some((r) =>
-    r.author && r.author.login === GITHUB_USER &&
-    new Date(r.submittedAt || 0) > new Date(latestChanges.submittedAt || 0));
-}
-// Author signal: have you handed the PR back since the last CHANGES_REQUESTED?
-// Authors can't review their own PR, so the strongest signal is a pending
-// re-request: reviewRequests becomes non-empty again after the author pushes.
-function authorHandedBack(pr) {
-  if ((pr.reviewRequests || []).length > 0) return true;
-  return hasRespondedAfterChanges(pr);
-}
-function reviewChip(pr) {
-  if (pr.role === "author") {
-    if (pr.reviewDecision === "CHANGES_REQUESTED") {
-      return authorHandedBack(pr)
-        ? { cls: "yellow", text: "🟡 Re-review" }
-        : { cls: "review-changes", text: "🟠 Fix requested" };
-    }
-    if (pr.reviewDecision === "APPROVED") return { cls: "green", text: "🟢 Approved" };
-    if ((pr.reviewRequests || []).length > 0) return { cls: "yellow", text: "🟡 In review" };
-    return { cls: "", text: "⚪ Waiting review" };
-  }
-  if ((pr.reviewRequests || []).includes(GITHUB_USER)) return { cls: "yellow", text: "🟡 Your review" };
-  const my = latestMyReview(pr);
-  if (my && my.state === "CHANGES_REQUESTED") return { cls: "review-changes", text: "🟠 Changes asked" };
-  if (my && my.state === "APPROVED") return { cls: "", text: "⚪ Author to merge" };
-  if (my && my.state === "COMMENTED") return { cls: "", text: "⚪ Waiting others" };
-  if (pr.reviewDecision === "CHANGES_REQUESTED") return { cls: "", text: "⚪ Author fixing" };
-  if (pr.reviewDecision === "APPROVED") return { cls: "green", text: "🟢 Approved" };
-  return { cls: "yellow", text: "🟡 Awaiting you" };
-}
-function priorityChip(pr) {
-  const ci = ciChip(pr);
-  if (ci && ci.cls === "red") return ci;
-  const rev = reviewChip(pr);
-  if (rev && rev.cls) return rev;
-  const w = ageWarn(pr._searchUpdatedAt);
-  if (w) return { cls: "urgent", text: w + " " + ageStr(pr._searchUpdatedAt) };
-  return rev || { cls: "", text: ageStr(pr._searchUpdatedAt) };
 }
 const REPO_PALETTE = [
   "#5fa8ff", "#c88cff", "#7ccc9f", "#ffb86b",
@@ -174,7 +86,10 @@ function applyPayload(payload) {
       p.role !== pr.role ||
       p.isDraft !== pr.isDraft ||
       p.title !== pr.title ||
-      p._searchUpdatedAt !== pr._searchUpdatedAt
+      p._searchUpdatedAt !== pr._searchUpdatedAt ||
+      // Ignore UNKNOWN transitions — GitHub computes these async and flickers.
+      (p.mergeable !== pr.mergeable && p.mergeable !== "UNKNOWN" && pr.mergeable !== "UNKNOWN") ||
+      (p.mergeStateStatus !== pr.mergeStateStatus && p.mergeStateStatus !== "UNKNOWN" && pr.mergeStateStatus !== "UNKNOWN")
     ) {
       changed.add(pr.url);
     }
@@ -283,27 +198,45 @@ function renderPr(pr, lane, repoColorValue) {
     ? "<img class=\"avatar\" src=\"" + avatarUrl(authorLogin) + "\" alt=\"@" + escapeHtml(authorLogin) + "\" loading=\"lazy\" referrerpolicy=\"no-referrer\" onerror=\"this.replaceWith(Object.assign(document.createElement('span'),{className:'avatar-fallback',textContent:'" + escapeHtml(loginInitial(authorLogin)) + "'}))\">"
     : "<span class=\"avatar-fallback\">?</span>";
 
+  const ageTs = bicSince(pr, GITHUB_USER) || pr._searchUpdatedAt;
+  const age = ageMarker(ageTs);
+  const ageHtml = "<span class=\"age-marker " + age.cls + "\">" + age.text + "</span>";
+
   let chips = "";
   if (lane === "top") {
     const ci = ciChip(pr);
-    const rev = reviewChip(pr);
-    const w = ageWarn(pr._searchUpdatedAt);
-    const myCount = myReviewCount(pr);
-    const reviewCountChip = myCount > 0 ? "<span class=\"chip\">📝 " + myCount + " review" + (myCount === 1 ? "" : "s") + "</span>" : "";
+    const merge = mergeChip(pr);
+    const rev = reviewChip(pr, GITHUB_USER);
+    const bounces = bouncesCount(pr);
+    const bouncesChip = bounces > 0 ? "<span class=\"chip\" title=\"" + bounces + " 'request changes' review" + (bounces === 1 ? "" : "s") + " — this PR has bounced back to the author " + bounces + " time" + (bounces === 1 ? "" : "s") + "\">🏓 " + bounces + "</span>" : "";
+    // Layout: CTA on the left (the primary signal), everything else
+    // right-aligned in a meta cluster (secondary state + age).
     chips = "<div class=\"top-card-footer\">" +
-      (ci ? "<span class=\"chip " + ci.cls + "\">" + ci.text + "</span>" : "") +
-      "<span class=\"chip " + rev.cls + "\">" + rev.text + "</span>" +
-      "<span class=\"chip\">" + (w ? w + " " : "") + ageStr(pr._searchUpdatedAt) + "</span>" +
-      reviewCountChip +
+      "<span class=\"chip chip-cta " + rev.cls + "\">" + rev.text + "</span>" +
+      "<div class=\"meta-chips\">" +
+        (ci ? "<span class=\"chip " + ci.cls + "\">" + ci.text + "</span>" : "") +
+        (merge ? "<span class=\"chip " + merge.cls + "\">" + merge.text + "</span>" : "") +
+        bouncesChip +
+        ageHtml +
+      "</div>" +
     "</div>";
   } else {
-    const p = priorityChip(pr);
-    chips = "<div class=\"chips\"><span class=\"chip " + p.cls + "\">" + p.text + "</span></div>";
+    const p = priorityChip(pr, GITHUB_USER);
+    const staleWarn = age.cls === "age-ancient"
+      ? "<span class=\"stale-warn\" title=\"No activity for " + escapeHtml(ageStr(ageTs)) + " — may be stuck\">!</span>"
+      : "";
+    chips = "<div class=\"chips\">" +
+      staleWarn +
+      "<span class=\"chip " + p.cls + "\">" + p.text + "</span>" +
+    "</div>";
   }
   if (lane === "top") {
-    return "<div class=\"pr role-" + pr.role + (pr.isDraft ? " draft" : "") + "\" style=\"border-left-color:" + repoColorValue + "\">" +
+    // Top lane: only emit the changed-dot when actually changed, and place it
+    // absolutely in the top-right corner so unchanged cards reclaim the space.
+    const changedDot = isChanged ? "<span class=\"changed-dot\" title=\"Changed in latest update\"></span>" : "";
+    return "<div class=\"pr role-" + pr.role + " " + age.cls + (pr.isDraft ? " draft" : "") + "\" style=\"border-left-color:" + repoColorValue + "\">" +
+      changedDot +
       "<div class=\"top-card-header\">" +
-        delta +
         avatar +
         "<span class=\"num\"><a href=\"" + escapeHtml(pr.url) + "\" target=\"_blank\" rel=\"noopener\">#" + pr.number + "</a></span>" +
         linearHtml +
