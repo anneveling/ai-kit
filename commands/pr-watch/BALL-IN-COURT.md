@@ -200,8 +200,8 @@ Replace `YOU` / fields with a snapshot from `~/.claude/pr-watch/current.json`.
 | 0.12.2 | Author court when one reviewer left `COMMENTED`/`CR` while others pending |
 | 0.13.0 | Reviewer off court after submitted `COMMENTED`/`CR`/`APPROVED` when not re-requested |
 | 0.14.0 | All-`APPROVED` + limp fallback → author |
-| 0.17.0 | BIC = act to unblock; CI pending + merge state chips-only |
-| 0.16.0 | BEHIND during review no longer → author; DIRTY + CI only; BEHIND when APPROVED |
 | 0.15.0 | CI pending/failure + merge blocked → author (superseded by 0.17.0) |
+| 0.16.0 | BEHIND during review no longer → author; DIRTY + CI only; BEHIND when APPROVED |
+| 0.17.0 | BIC = act to unblock; CI pending + merge state chips-only |
 
 Full details: [CHANGELOG.md](CHANGELOG.md).
