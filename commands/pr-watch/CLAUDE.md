@@ -12,6 +12,13 @@ This file is the authoritative reference for installing, configuring, and operat
 | `index.html` | Dashboard HTML shell — copy to `~/.claude/pr-watch/` |
 | `styles.css` | Dashboard stylesheet — copy to `~/.claude/pr-watch/` |
 | `app.js` | Dashboard frontend logic — copy to `~/.claude/pr-watch/` |
+| `BALL-IN-COURT.md` | Human-readable BIC rules, void cases, testing — stays in repo (not copied) |
+| `WORKFLOW-NOTES.md` | Team workflow limits, GitHub model, alternatives — stays in repo (not copied) |
+| `scripts/sync-global.sh` | Sync repo → `~/.claude/pr-watch` and optional `--test` |
+
+## Ball in court
+
+See [BALL-IN-COURT.md](BALL-IN-COURT.md) for the full rule set (0.17.0+: review-driven BIC, CI failure only, merge state chips-only, multi-reviewer overlap, GitHub `COMMENTED` vs thread comments, void cases).
 
 ## Maintainer workflow (repo owner / forkers only)
 
@@ -25,7 +32,7 @@ This section applies only when making changes to the source files in this repo.
    node --test test/poll.test.mjs
    ```
    All tests must pass. If you add behaviour, add a test for it.
-3. **Bump the version** — update the comment on line 2 of `poll.mjs` and the `version` field in `package.json`.
+3. **Bump the version** in all four places — the comment on line 2 of `poll.mjs`, `POLLER_VERSION` in `poll.mjs`, the `version` field in `package.json`, and both the HTML comment on line 1 and the "Installed version" line of `pr-watch.md` (upgrade discovery reads that marker).
 4. **Add a CHANGELOG entry** — document what changed and why in `CHANGELOG.md`.
 5. **Merge the PR** to `main`.
 
@@ -39,9 +46,14 @@ Once the PR is merged and the new version is live on `main`, ask the user (or of
 
 This is a maintainer-only step. Do not offer it to regular users of the command.
 
-To sync:
+To sync and verify the global install:
 ```bash
-cp poll.mjs lib.mjs ~/.claude/pr-watch/
+./scripts/sync-global.sh --test
+```
+
+Or manually:
+```bash
+cp poll.mjs lib.mjs index.html styles.css app.js ~/.claude/pr-watch/
 ```
 
 ## Checking for updates
@@ -62,10 +74,11 @@ To update, re-run the installation steps below.
 ## Installation
 
 ```bash
-cp pr-watch.md ~/.claude/commands/pr-watch.md
-mkdir -p ~/.claude/pr-watch
-cp poll.mjs lib.mjs index.html styles.css app.js ~/.claude/pr-watch/
+cd commands/pr-watch   # from ai-kit repo root
+./scripts/sync-global.sh
 ```
+
+This copies runtime files to `~/.claude/pr-watch/` and `pr-watch.md` to `~/.claude/commands/`.
 
 ## Invoking the command
 

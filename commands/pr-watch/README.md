@@ -147,6 +147,21 @@ If neither `STOP_AT` nor `HOURS` is set, the poller auto-stops at 18:00 if start
 
 See [CLAUDE.md](CLAUDE.md) for the full event protocol and advanced options — useful if you're adapting this to a different agent or consuming the event stream yourself.
 
+## Ball in court
+
+Who lands in **YOUR TURN** vs **WAITING** is documented in [BALL-IN-COURT.md](BALL-IN-COURT.md) (rules, GitHub review states, void cases, multi-reviewer overlap). For **why** the model is limited and team/process alternatives, see [WORKFLOW-NOTES.md](WORKFLOW-NOTES.md).
+
+### Sync and test the global install
+
+The live command uses `~/.claude/pr-watch/`, not this repo directly:
+
+```bash
+cd commands/pr-watch
+./scripts/sync-global.sh          # copy to ~/.claude/pr-watch
+./scripts/sync-global.sh --test   # sync + unit tests + global smoke
+node ~/.claude/pr-watch/poll.mjs  # live dashboard at http://localhost:7654
+```
+
 ---
 
 ## For maintainers and forkers
@@ -157,11 +172,12 @@ The files users install are `pr-watch.md`, `poll.mjs`, `lib.mjs`, `index.html`, 
 
 **When you change any of the installed files:**
 
-1. Bump the version comment on line 2 of `poll.mjs` and the version in `package.json`.
+1. Bump the version in `poll.mjs` (line 2 comment and `POLLER_VERSION`), `package.json`, and `pr-watch.md` (line 1 marker and the "Installed version" line).
 2. Add an entry to [CHANGELOG.md](CHANGELOG.md).
-3. Re-copy to your own global install so your local copy stays in sync:
+3. Sync to your global install and run tests:
    ```bash
-   cp poll.mjs lib.mjs index.html styles.css app.js ~/.claude/pr-watch/
+   ./scripts/sync-global.sh --test
    ```
+   See [BALL-IN-COURT.md](BALL-IN-COURT.md) for BIC rules and manual testing.
 
 The globally-installed copy at `~/.claude/pr-watch/` is independent of the repo — changes are not applied automatically.

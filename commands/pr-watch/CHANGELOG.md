@@ -1,5 +1,86 @@
 # Changelog
 
+## 0.17.2 (2026-09-10)
+
+### Dashboard
+
+Browser tab title now reads **PR Watch** (`(3) PR Watch` when PRs are in your court), matching the page heading and the command name. It previously said "PR Inbox".
+
+### Docs
+
+`pr-watch.md` version marker was stuck at 0.11.0 while the poller was already on 0.17.x, so upgrade discovery reported a wrong installed version. It now tracks the release.
+
+## 0.17.1 (2026-06-04)
+
+### Dashboard
+
+Header shows **poller version** (gray, right) linking to the pr-watch folder on GitHub.
+
+## 0.17.0 (2026-06-04)
+
+### Ball-in-court: review-driven queue
+
+BIC now means “you need to act to move the process forward,” not “something on the PR needs attention.”
+
+- **CI PENDING** no longer puts the author in court (⏳ chip only).
+- **CI FAILURE** still puts the author in court.
+- **Merge state** (`DIRTY`, `BEHIND`, etc.) no longer affects BIC — conflict/behind chips show when the PR is already in your lane for review/merge reasons.
+
+## 0.16.3 (2026-06-04)
+
+### Poller cache fix
+
+Cached PRs now always get a light `gh pr view` refresh (checks + review requests + draft flag), not only when CI still looks pending. Fixes draft PRs showing in the author’s court after adding reviewers when GitHub didn’t bump search `updatedAt`.
+
+## 0.16.2 (2026-06-04)
+
+### Poller cache fix
+
+When search `updatedAt` is unchanged, the poller still recomputes `ciStatus` from cached rollup (picks up improved `ciSummary`). If still `PENDING`, it refetches check rollup from GitHub — CI can finish without bumping PR `updatedAt` (e.g. bubble #805 stuck ⏳). `POLLER_VERSION` in `current.json` now matches `poll.mjs`.
+
+## 0.16.1 (2026-06-04)
+
+### CI summary fix
+
+`ciSummary` now groups checks by workflow + job name. When GitHub returns duplicate runs (e.g. one `COMPLETED` `SUCCESS` and a stale `IN_PROGRESS` from another run), the PR is **SUCCESS** — fixes false ⏳ CI and author court on PRs like bubble #805.
+
+## 0.16.0 (2026-06-04)
+
+### Ball-in-court: BEHIND during review
+
+`BEHIND` no longer pulls the author into court while a PR is still in review — staying behind base is normal. Author court for merge sync only when `BEHIND` **and** `reviewDecision === APPROVED`. Mid-review automation is now CI pending/failure and **DIRTY** (conflicts) only.
+
+## 0.15.0 (2026-06-04)
+
+### Ball-in-court: CI and merge checks
+
+While CI is pending or failing, the author gets the ball — their commit/branch. Reviewers can still have the ball in parallel when requested. The ⏳ / ❌ CI chips in the dashboard are unchanged. *(Subsequent 0.16.0 narrows merge-state author court — see above.)*
+
+## 0.14.0 (2026-06-04)
+
+### Ball-in-court gaps
+
+- **All approved:** when every entry in `latestReviews` is `APPROVED` and nobody is on `reviewRequests`, the author gets the ball (merge / chase checks) even if GitHub’s aggregate `reviewDecision` lags.
+- **Limp fallback:** if the rules would assign nobody but there is review activity in `latestReviews` or `reviews`, assign the author.
+
+## 0.13.0 (2026-06-04)
+
+### Ball-in-court fix
+
+Reviewers who submitted a formal review (`COMMENTED`, `CHANGES_REQUESTED`, or `APPROVED`) and are no longer on `reviewRequests` no longer keep the ball. Mid-review still works: while you remain requested, or your latest review is `PENDING` / not yet submitted, the ball stays with you.
+
+## 0.12.2 (2026-06-04)
+
+### Ball-in-court fix
+
+When one reviewer has left `COMMENTED` or `CHANGES_REQUESTED` feedback (and is no longer in `reviewRequests`), the author now gets the ball even if other reviewers are still pending. Previously only `CHANGES_REQUESTED` pulled the author in, and `COMMENTED` kept the ball with the reviewer — so multi-reviewer PRs stayed in "waiting" while you still needed to process one person's comments.
+
+## 0.12.1 (2026-06-04)
+
+### Ball-in-court fix
+
+Draft PRs with pending review requests now assign the ball to those reviewers (early-review drafts), not the author. Drafts with no reviewers still stay with the author. Unaddressed `CHANGES_REQUESTED` on a draft still pulls the ball back to the author.
+
 ## 0.12.0 (2026-05-27)
 
 **Feature: per-reviewer ball-in-court, merge status chips, age lifecycle, async poller**
@@ -9,7 +90,7 @@
 The BIC logic is now per-reviewer: each reviewer's position in the PR is evaluated independently. Previously, having one reviewer request changes would pull all other reviewers' PRs out of your court — now each reviewer's ball is tracked separately. This fixes the case where reviewer A requests changes on a PR you haven't reviewed yet, which incorrectly pulled that PR out of your (reviewer B's) court.
 
 Fixes tracked in `ballInCourt()`:
-- Draft PRs: ball goes to author only; all pending review requests are ignored
+- Draft PRs without reviewers: ball goes to author only
 - Pending re-request after CHANGES_REQUESTED: ball goes to that reviewer, not author
 - Multi-reviewer: CHANGES_REQUESTED from one reviewer doesn't affect another reviewer's BIC status
 - No engagement yet: ball stays with author so they can assign reviewers

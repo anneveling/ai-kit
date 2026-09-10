@@ -52,6 +52,17 @@ a { color: inherit; }
   vertical-align: middle;
 }
 #header .filler { flex: 1; }
+.version-link {
+  flex: 0 0 auto;
+  font-size: 11px;
+  text-decoration: none;
+  opacity: 0.85;
+}
+.version-link:hover {
+  opacity: 1;
+  text-decoration: underline;
+  color: var(--text-muted);
+}
 #header label, #header button {
   background: transparent;
   border: 1px solid var(--border);

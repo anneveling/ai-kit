@@ -7,6 +7,15 @@ import {
 // Set from the `viewer` field of the first payload — see applyPayload.
 let GITHUB_USER = null;
 
+const REPO_URL = "https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch";
+
+function updateVersionLink(pollerVersion) {
+  const el = document.getElementById("version-link");
+  if (!el) return;
+  el.href = REPO_URL;
+  el.textContent = pollerVersion ? "v" + pollerVersion : "v—";
+}
+
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => (
     { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]
@@ -68,6 +77,7 @@ function applyPayload(payload) {
     return;
   }
   if (payload.viewer) GITHUB_USER = payload.viewer;
+  if (payload.pollerVersion) updateVersionLink(payload.pollerVersion);
   if (!GITHUB_USER) {
     document.body.innerHTML = '<pre style="padding:2rem;color:#e6edf3">pr-watch: viewer missing from payload. Is the poller signed in with `gh auth login`?</pre>';
     return;
@@ -129,7 +139,7 @@ function render() {
   }
   document.getElementById("bottom-lane-header").textContent = "WAITING (" + wait.length + ")";
   document.getElementById("bic-count").textContent = bic.length + " your turn";
-  document.title = bic.length > 0 ? "(" + bic.length + ") PR Inbox" : "PR Inbox";
+  document.title = bic.length > 0 ? "(" + bic.length + ") PR Watch" : "PR Watch";
 
   document.getElementById("top-cols").innerHTML = renderCols(repos, groupBy(bic), "top");
   document.getElementById("bottom-cols").innerHTML = renderCols(repos, groupBy(wait), "bottom");
