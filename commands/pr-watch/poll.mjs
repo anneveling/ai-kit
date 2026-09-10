@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// poll.mjs — version 0.12.0
+// poll.mjs — version 0.17.2
 // source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch
 // Polls GitHub for open PRs you authored or are requested to review.
 // Emits JSON change-event lines to stdout when anything changes.
@@ -30,7 +30,7 @@ import { fileURLToPath } from "url";
 import { buildPayload, ciSummary, computeEvents, computeStopTime, diffPr } from "./lib.mjs";
 
 const SCHEMA_VERSION = 1;
-const POLLER_VERSION = "0.12.0";
+const POLLER_VERSION = "0.17.2";
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 
 // ── Preflight ────────────────────────────────────────────────────────────────
@@ -89,6 +89,35 @@ const warnedAt = new Set();
 
 const SEARCH_FIELDS = "number,title,url,repository,author,isDraft,state,updatedAt";
 const VIEW_FIELDS = "number,title,url,author,isDraft,reviewDecision,statusCheckRollup,reviews,reviewRequests,state,createdAt,updatedAt,mergeable,mergeStateStatus";
+// CI/merge can finish without bumping the search index updatedAt — refresh these on cache hit.
+const REFRESH_FIELDS = "statusCheckRollup,mergeStateStatus,reviewDecision,reviewRequests,reviews,isDraft,mergeable";
+
+function latestReviewsFromDetails(details, me) {
+  return Object.values(
+    (details.reviews ?? [])
+      .filter((r) => r.author?.login && r.author.login !== me)
+      .filter((r) => r.state !== "DISMISSED")
+      .filter((r) => !r.author?.is_bot)
+      .reduce((acc, r) => {
+        const login = r.author.login;
+        if (!acc[login] || r.submittedAt > acc[login].submittedAt) acc[login] = r;
+        return acc;
+      }, {}),
+  ).map((r) => ({ login: r.author.login, state: r.state, submittedAt: r.submittedAt }));
+}
+
+function buildEnrichedFromDetails(details, role, repo, me) {
+  return {
+    ...details,
+    role,
+    repo,
+    ciStatus: ciSummary(details.statusCheckRollup),
+    latestReviews: latestReviewsFromDetails(details, me),
+    reviewRequests: (details.reviewRequests ?? [])
+      .map((r) => (typeof r === "string" ? r : r?.login))
+      .filter(Boolean),
+  };
+}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -138,32 +167,11 @@ async function fetchSummaries() {
 async function enrichPr(url, role, repo, me) {
   const details = await gh(`pr view "${url}" --json "${VIEW_FIELDS}"`);
   if (!details) return null;
+  return buildEnrichedFromDetails(details, role, repo, me);
+}
 
-  // Filter out:
-  //   - self (you can't review your own PR formally, and per-reviewer logic
-  //     handles your own latest review separately via pr.reviews)
-  //   - DISMISSED reviews (stale approvals after force-push, etc. — no signal)
-  //   - bot reviews (Dependabot, Codecov etc. — they don't drive ball-in-court)
-  const latestReviews = Object.values(
-    (details.reviews ?? [])
-      .filter((r) => r.author?.login && r.author.login !== me)
-      .filter((r) => r.state !== "DISMISSED")
-      .filter((r) => !r.author?.is_bot)
-      .reduce((acc, r) => {
-        const login = r.author.login;
-        if (!acc[login] || r.submittedAt > acc[login].submittedAt) acc[login] = r;
-        return acc;
-      }, {})
-  ).map((r) => ({ login: r.author.login, state: r.state, submittedAt: r.submittedAt }));
-
-  return {
-    ...details,
-    role,
-    repo,
-    ciStatus: ciSummary(details.statusCheckRollup),
-    latestReviews,
-    reviewRequests: (details.reviewRequests ?? []).map((r) => r.login),
-  };
+async function refreshPrDetails(url) {
+  return gh(`pr view "${url}" --json "${REFRESH_FIELDS}"`);
 }
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -333,19 +341,19 @@ async function pollOnce(isFirstRun, me) {
     }
   }
 
-  // Skip the per-PR `gh pr view` call when the PR's updatedAt hasn't changed
-  // since we last enriched it. GitHub bumps updatedAt on any PR-side event
-  // (push, comment, review, label, CI completion), so we only miss state
-  // shifts driven by main-branch motion (e.g. mergeStateStatus flipping to
-  // BEHIND with no PR activity). Acceptable lag — will resolve on next event.
+  // Skip the full `gh pr view` when search updatedAt is unchanged, but always
+  // light-refresh CI/reviews/requests — those can change without bumping updatedAt
+  // (CI finishing, adding draft reviewers, etc.).
   const enrichedMap = {};
   for (const { url, role, repository, updatedAt } of summaries) {
     const repo = repository.nameWithOwner;
     const prev = prevState[url];
     if (prev && updatedAt && prev._searchUpdatedAt === updatedAt && prev.mergeable !== "UNKNOWN") {
-      // role can change between polls (e.g. you commented on someone's PR and
-      // now appear via --reviewed-by). Keep the rest of the cached enrichment.
-      enrichedMap[url] = { ...prev, role, repo };
+      const fresh = await refreshPrDetails(url);
+      const cached = fresh
+        ? buildEnrichedFromDetails({ ...prev, ...fresh }, role, repo, me)
+        : buildEnrichedFromDetails({ ...prev, role, repo }, role, repo, me);
+      enrichedMap[url] = { ...cached, _searchUpdatedAt: updatedAt };
       continue;
     }
     const enriched = await enrichPr(url, role, repo, me);

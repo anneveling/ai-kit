@@ -128,8 +128,18 @@ test("ciSummary: FAILURE when any check failed", () => {
 });
 
 test("ciSummary: PENDING when any check is in progress", () => {
-  assert.equal(ciSummary([{ conclusion: "SUCCESS" }, { status: "IN_PROGRESS" }]), "PENDING");
+  assert.equal(ciSummary([{ status: "IN_PROGRESS" }]), "PENDING");
   assert.equal(ciSummary([{ status: "QUEUED" }]), "PENDING");
+});
+
+test("ciSummary: duplicate runs — completed SUCCESS beats stale IN_PROGRESS", () => {
+  const rollup = [
+    { workflowName: "Tests", name: "Run integration tests", status: "COMPLETED", conclusion: "SUCCESS" },
+    { workflowName: "Tests", name: "Run integration tests", status: "IN_PROGRESS", conclusion: "" },
+    { workflowName: "CodeQL", name: "Analyze (python)", status: "COMPLETED", conclusion: "SUCCESS" },
+    { workflowName: "CodeQL", name: "Analyze (python)", status: "IN_PROGRESS", conclusion: "" },
+  ];
+  assert.equal(ciSummary(rollup), "SUCCESS");
 });
 
 test("ciSummary: SUCCESS when all checks passed", () => {
@@ -137,8 +147,8 @@ test("ciSummary: SUCCESS when all checks passed", () => {
   assert.equal(ciSummary([{ conclusion: "SKIPPED" }, { conclusion: "COMPLETED" }]), "SUCCESS");
 });
 
-test("ciSummary: uses status over conclusion when both present", () => {
-  assert.equal(ciSummary([{ status: "IN_PROGRESS", conclusion: "SUCCESS" }]), "PENDING");
+test("ciSummary: in-flight row without COMPLETED is PENDING", () => {
+  assert.equal(ciSummary([{ status: "IN_PROGRESS", conclusion: "" }]), "PENDING");
 });
 
 // ── diffPr ────────────────────────────────────────────────────────────────────
@@ -303,11 +313,30 @@ function makeBicPr(overrides = {}) {
   };
 }
 
-test("ballInCourt: draft PR is always author's ball", () => {
-  const pr = makeBicPr({ isDraft: true, reviewRequests: ["bob"] });
+test("ballInCourt: draft PR with no reviewers → author's ball", () => {
+  const pr = makeBicPr({ isDraft: true, reviewRequests: [] });
   const bic = ballInCourt(pr, "alice");
   assert.ok(bic.has("alice"));
-  assert.ok(!bic.has("bob")); // pending request ignored for drafts
+});
+
+test("ballInCourt: draft PR with review requests → reviewers' ball", () => {
+  const pr = makeBicPr({ isDraft: true, reviewRequests: ["bob", "carol"] });
+  const bic = ballInCourt(pr, "alice");
+  assert.ok(bic.has("bob"));
+  assert.ok(bic.has("carol"));
+  assert.ok(!bic.has("alice"));
+});
+
+test("ballInCourt: draft PR with unaddressed CHANGES_REQUESTED → author too", () => {
+  const pr = makeBicPr({
+    isDraft: true,
+    reviewRequests: [],
+    latestReviews: [{ login: "bob", state: "CHANGES_REQUESTED" }],
+    reviewDecision: "CHANGES_REQUESTED",
+  });
+  const bic = ballInCourt(pr, "alice");
+  assert.ok(bic.has("alice"));
+  assert.ok(!bic.has("bob"));
 });
 
 test("ballInCourt: pending review request → that reviewer's ball", () => {
@@ -350,13 +379,38 @@ test("ballInCourt: APPROVED + no pending re-requests → author must merge", () 
   assert.ok(bic.has("alice"));
 });
 
-test("ballInCourt: DIRTY → author has conflicts to fix", () => {
-  const pr = makeBicPr({ mergeStateStatus: "DIRTY" });
+test("ballInCourt: DIRTY mid-review → not author's ball (chip only)", () => {
+  const pr = makeBicPr({
+    mergeStateStatus: "DIRTY",
+    reviewRequests: ["bob"],
+  });
+  const bic = ballInCourt(pr, "alice");
+  assert.ok(!bic.has("alice"));
+  assert.ok(bic.has("bob"));
+});
+
+test("ballInCourt: DIRTY + APPROVED → author (merge path)", () => {
+  const pr = makeBicPr({
+    mergeStateStatus: "DIRTY",
+    reviewDecision: "APPROVED",
+    latestReviews: [{ login: "bob", state: "APPROVED" }],
+  });
   const bic = ballInCourt(pr, "alice");
   assert.ok(bic.has("alice"));
 });
 
-test("ballInCourt: BEHIND + APPROVED → author must rebase", () => {
+test("ballInCourt: BEHIND during review → not author's ball", () => {
+  const pr = makeBicPr({
+    mergeStateStatus: "BEHIND",
+    reviewDecision: "REVIEW_REQUIRED",
+    reviewRequests: ["bob"],
+  });
+  const bic = ballInCourt(pr, "alice");
+  assert.ok(!bic.has("alice"));
+  assert.ok(bic.has("bob"));
+});
+
+test("ballInCourt: BEHIND + APPROVED → author (via approved, not merge state)", () => {
   const pr = makeBicPr({
     mergeStateStatus: "BEHIND",
     reviewDecision: "APPROVED",
@@ -364,6 +418,35 @@ test("ballInCourt: BEHIND + APPROVED → author must rebase", () => {
   });
   const bic = ballInCourt(pr, "alice");
   assert.ok(bic.has("alice"));
+});
+
+test("ballInCourt: CI PENDING → not author court (reviewers may)", () => {
+  const pr = makeBicPr({
+    ciStatus: "PENDING",
+    reviewRequests: ["bob"],
+    latestReviews: [],
+  });
+  const bic = ballInCourt(pr, "alice");
+  assert.ok(!bic.has("alice"));
+  assert.ok(bic.has("bob"));
+});
+
+test("ballInCourt: CI FAILURE → author court", () => {
+  const pr = makeBicPr({ ciStatus: "FAILURE", reviewRequests: [] });
+  const bic = ballInCourt(pr, "alice");
+  assert.ok(bic.has("alice"));
+});
+
+test("ballInCourt: CI SUCCESS alone does not add author without review signals", () => {
+  const pr = makeBicPr({
+    ciStatus: "SUCCESS",
+    reviewRequests: ["bob"],
+    latestReviews: [],
+    reviewDecision: "REVIEW_REQUIRED",
+  });
+  const bic = ballInCourt(pr, "alice");
+  assert.ok(!bic.has("alice"));
+  assert.ok(bic.has("bob"));
 });
 
 test("ballInCourt: no engagement at all → author needs to add reviewers", () => {
@@ -398,6 +481,45 @@ test("ballInCourt: reviewer role after CHANGES_REQUESTED by me → not my ball a
   assert.ok(bic.has("bob")); // alice's CHANGES_REQUESTED is unaddressed
 });
 
+test("ballInCourt: reviewer after submitted COMMENTED → not my ball, author processes", () => {
+  const pr = makeBicPr({
+    role: "reviewer",
+    author: { login: "bob" },
+    reviewRequests: [],
+    latestReviews: [{ login: "alice", state: "COMMENTED" }],
+    reviews: [{ author: { login: "alice" }, state: "COMMENTED", submittedAt: "2024-01-10T00:00:00Z" }],
+  });
+  const bic = ballInCourt(pr, "alice");
+  assert.ok(!bic.has("alice"));
+  assert.ok(bic.has("bob"));
+});
+
+test("ballInCourt: reviewer still requested, no submit yet → my ball not author", () => {
+  const pr = makeBicPr({
+    role: "reviewer",
+    author: { login: "bob" },
+    reviewRequests: ["alice"],
+    latestReviews: [],
+    reviews: [],
+  });
+  const bic = ballInCourt(pr, "alice");
+  assert.ok(bic.has("alice"));
+  assert.ok(!bic.has("bob"));
+});
+
+test("ballInCourt: reviewer PENDING while still requested → my ball", () => {
+  const pr = makeBicPr({
+    role: "reviewer",
+    author: { login: "bob" },
+    reviewRequests: ["alice"],
+    latestReviews: [],
+    reviews: [{ author: { login: "alice" }, state: "PENDING", submittedAt: "2024-01-10T00:00:00Z" }],
+  });
+  const bic = ballInCourt(pr, "alice");
+  assert.ok(bic.has("alice"));
+  assert.ok(!bic.has("bob"));
+});
+
 test("ballInCourt: multi-reviewer — one reviewer requests changes, other reviewer still has ball", () => {
   // alice is reviewer; wspringer already requested changes (unaddressed)
   // → alice's ball is independent of wspringer's changes request
@@ -417,19 +539,71 @@ test("ballInCourt: multi-reviewer — one reviewer requests changes, other revie
   assert.ok(bic.has("bob"));
 });
 
-test("ballInCourt: COMMENTED reviewer is mid-review (ball stays with them)", () => {
+test("ballInCourt: COMMENTED reviewer done → author processes feedback", () => {
   const pr = makeBicPr({
     role: "author",
     latestReviews: [{ login: "bob", state: "COMMENTED" }],
     reviewRequests: [],
   });
   const bic = ballInCourt(pr, "alice");
-  assert.ok(bic.has("bob"));
+  assert.ok(bic.has("alice"));
+  assert.ok(!bic.has("bob"));
+});
+
+test("ballInCourt: one reviewer commented, other still pending → author too", () => {
+  const pr = makeBicPr({
+    reviewRequests: ["carol"],
+    latestReviews: [{ login: "bob", state: "COMMENTED" }],
+  });
+  const bic = ballInCourt(pr, "alice");
+  assert.ok(bic.has("alice"));
+  assert.ok(bic.has("carol"));
+  assert.ok(!bic.has("bob"));
+});
+
+test("ballInCourt: draft — one reviewer commented, other still pending → author too", () => {
+  const pr = makeBicPr({
+    isDraft: true,
+    reviewRequests: ["carol"],
+    latestReviews: [{ login: "bob", state: "COMMENTED" }],
+  });
+  const bic = ballInCourt(pr, "alice");
+  assert.ok(bic.has("alice"));
+  assert.ok(bic.has("carol"));
 });
 
 test("ballInCourt: returns empty set when no author login", () => {
   const pr = { ...makeBicPr(), author: null };
   assert.equal(ballInCourt(pr, "alice").size, 0);
+});
+
+test("ballInCourt: all latest reviews APPROVED, no pending → author merge court", () => {
+  const pr = makeBicPr({
+    reviewDecision: "REVIEW_REQUIRED",
+    reviewRequests: [],
+    latestReviews: [
+      { login: "bob", state: "APPROVED" },
+      { login: "carol", state: "APPROVED" },
+    ],
+  });
+  const bic = ballInCourt(pr, "alice");
+  assert.ok(bic.has("alice"));
+  assert.ok(!bic.has("bob"));
+  assert.ok(!bic.has("carol"));
+});
+
+test("ballInCourt: limp state with review activity → author fallback", () => {
+  // Simulates a gap: activity in reviews but nothing else fired (e.g. stale shapes).
+  const pr = makeBicPr({
+    reviewDecision: "REVIEW_REQUIRED",
+    reviewRequests: [],
+    latestReviews: [],
+    reviews: [
+      { author: { login: "bob", is_bot: false }, state: "APPROVED", submittedAt: "2024-01-10T00:00:00Z" },
+    ],
+  });
+  const bic = ballInCourt(pr, "alice");
+  assert.ok(bic.has("alice"));
 });
 
 // ── bicSince ──────────────────────────────────────────────────────────────────

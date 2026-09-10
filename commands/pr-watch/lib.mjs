@@ -10,12 +10,45 @@ export function buildPayload(prs, viewer, { schemaVersion, pollerVersion }) {
   };
 }
 
+const CI_FAIL = new Set(["FAILURE", "ERROR", "ACTION_REQUIRED"]);
+const CI_OK = new Set(["SUCCESS", "NEUTRAL", "SKIPPED"]);
+const CI_RUNNING = new Set(["IN_PROGRESS", "QUEUED", "PENDING", "WAITING"]);
+
+// One state per logical job (workflow + name). Duplicate runs are common on PRs;
+// a stale IN_PROGRESS sibling must not mask a completed SUCCESS on another run.
+function ciGroupState(checks) {
+  for (const c of checks) {
+    if (CI_FAIL.has(c.conclusion) || CI_FAIL.has(c.status)) return "FAILURE";
+  }
+  if (checks.some((c) => {
+    if (c.status !== "COMPLETED") return false;
+    const conc = c.conclusion ?? "";
+    return CI_OK.has(conc) || conc === "" || conc === "COMPLETED";
+  })) {
+    return "SUCCESS";
+  }
+  if (checks.some((c) => CI_RUNNING.has(c.status ?? ""))) return "PENDING";
+  if (checks.every((c) => {
+    const conc = c.conclusion ?? "";
+    return CI_OK.has(conc) || conc === "COMPLETED";
+  })) {
+    return "SUCCESS";
+  }
+  return "PENDING";
+}
+
 export function ciSummary(checkRollup) {
   if (!checkRollup?.length) return null;
-  const states = checkRollup.map((c) => c.status ?? c.conclusion ?? "PENDING");
-  if (states.some((s) => ["FAILURE", "ERROR", "ACTION_REQUIRED"].includes(s))) return "FAILURE";
-  if (states.some((s) => ["IN_PROGRESS", "QUEUED", "PENDING", "WAITING"].includes(s))) return "PENDING";
-  if (states.every((s) => ["SUCCESS", "NEUTRAL", "SKIPPED", "COMPLETED"].includes(s))) return "SUCCESS";
+  const groups = new Map();
+  for (const c of checkRollup) {
+    const key = `${c.workflowName ?? ""}\0${c.name ?? ""}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(c);
+  }
+  const states = [...groups.values()].map(ciGroupState);
+  if (states.some((s) => s === "FAILURE")) return "FAILURE";
+  if (states.some((s) => s === "PENDING")) return "PENDING";
+  if (states.every((s) => s === "SUCCESS")) return "SUCCESS";
   return "PENDING";
 }
 
@@ -103,46 +136,84 @@ export function latestMyReview(pr, me) {
 }
 
 // Returns a Set of GitHub logins who own the next action on this PR.
-//   draft                                   → author
+//   draft, no reviewers                     → author
+//   draft + pending review request          → that reviewer (early review)
 //   pending review request                  → that user
 //   blocked (CHANGES_REQUESTED, not re-req) → author (must fix + re-request)
-//   approved + no pending re-request        → author (merge it)
-//   conflicts (mergeStateStatus=DIRTY)      → author
-//   behind main + approved                  → author (rebase to land)
-//   reviewer with no final verdict          → that reviewer (mid-review)
+//   approved + no pending re-request        → author (merge it; chips show conflict/behind)
+//   CI failure                              → author (fix checks)
+//   reviewer feedback (COMMENTED/CR, done)    → author (process + other reviewers may still be pending)
+//   reviewer still requested / PENDING      → that reviewer (mid-review)
+//   reviewer submitted COMMENTED/CR/APPROVED, not re-requested → not reviewer (author)
 //   author with no engagement at all        → author (add reviewers)
+// Merge state (DIRTY/BEHIND) and CI pending do not affect BIC — chips only.
+function authorOwesReviewerFeedback(pr, pendingReReq, authorLogin) {
+  return (pr.latestReviews || []).some((r) =>
+    r.login &&
+    r.login !== authorLogin &&
+    (r.state === "CHANGES_REQUESTED" || r.state === "COMMENTED") &&
+    !pendingReReq.has(r.login)
+  );
+}
+
+function allLatestReviewsApproved(pr) {
+  const lr = pr.latestReviews || [];
+  return lr.length > 0 && lr.every((r) => r.state === "APPROVED");
+}
+
+function hasReviewActivity(pr) {
+  if ((pr.latestReviews || []).length > 0) return true;
+  return (pr.reviews || []).some(
+    (r) => r.author?.login && r.state !== "DISMISSED" && !r.author?.is_bot,
+  );
+}
+
+// Close nobody-has-the-ball gaps before returning (no extra UI lane).
+function closeBicGaps(balls, pr, pendingReReq, authorLogin) {
+  if (allLatestReviewsApproved(pr) && pendingReReq.size === 0) {
+    balls.add(authorLogin);
+  }
+  if (balls.size === 0 && hasReviewActivity(pr)) {
+    balls.add(authorLogin);
+  }
+  return balls;
+}
+
 export function ballInCourt(pr, me) {
   const balls = new Set();
   const authorLogin = pr.author && pr.author.login;
   if (!authorLogin) return balls;
 
-  if (pr.isDraft) { balls.add(authorLogin); return balls; }
-
   const pendingReReq = new Set(pr.reviewRequests || []);
+
+  if (pr.isDraft) {
+    if (pendingReReq.size > 0) {
+      for (const login of pendingReReq) balls.add(login);
+      if (authorOwesReviewerFeedback(pr, pendingReReq, authorLogin)) balls.add(authorLogin);
+      return closeBicGaps(balls, pr, pendingReReq, authorLogin);
+    }
+    balls.add(authorLogin);
+    return balls;
+  }
+
   for (const login of pendingReReq) balls.add(login);
 
-  const blockersUnaddressed = (pr.latestReviews || [])
-    .some((r) => r.state === "CHANGES_REQUESTED" && !pendingReReq.has(r.login));
-  if (blockersUnaddressed) balls.add(authorLogin);
+  if (authorOwesReviewerFeedback(pr, pendingReReq, authorLogin)) balls.add(authorLogin);
 
   if (pr.reviewDecision === "APPROVED" && pendingReReq.size === 0) {
     balls.add(authorLogin);
   }
 
-  if (pr.mergeStateStatus === "DIRTY") balls.add(authorLogin);
-  if (pr.mergeStateStatus === "BEHIND" && pr.reviewDecision === "APPROVED") {
-    balls.add(authorLogin);
-  }
+  if (pr.ciStatus === "FAILURE") balls.add(authorLogin);
 
-  // Other reviewers mid-review (COMMENTED, no final verdict, not re-requested).
-  for (const r of pr.latestReviews || []) {
-    if (r.state === "COMMENTED" && !pendingReReq.has(r.login)) balls.add(r.login);
-  }
-
-  // `me` as a tracked reviewer with no final verdict yet.
+  // Reviewer inbox: ball only while still requested or review not yet submitted.
   if (me && pr.role === "reviewer") {
-    const my = latestMyReview(pr, me);
-    if (!my || my.state === "COMMENTED" || my.state === "PENDING") balls.add(me);
+    if (pendingReReq.has(me)) {
+      balls.add(me);
+    } else {
+      const my = latestMyReview(pr, me);
+      if (!my || my.state === "PENDING") balls.add(me);
+    }
   }
 
   if (
@@ -153,7 +224,7 @@ export function ballInCourt(pr, me) {
     balls.add(authorLogin);
   }
 
-  return balls;
+  return closeBicGaps(balls, pr, pendingReReq, authorLogin);
 }
 
 // "Since when has the ball been in `me`'s court", inferred from review and

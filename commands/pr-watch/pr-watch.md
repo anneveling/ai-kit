@@ -1,8 +1,8 @@
-<!-- version: 0.11.0 | source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch -->
+<!-- version: 0.17.2 | source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch -->
 
 ## About this command
 
-Installed version: **0.11.0**  
+Installed version: **0.17.2**  
 Source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch
 
 ### Checking for updates
