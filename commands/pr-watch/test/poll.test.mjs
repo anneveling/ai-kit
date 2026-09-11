@@ -4,6 +4,7 @@ import {
   buildPayload, ciSummary, computeEvents, computeStopTime, diffPr,
   latestMyReview, ballInCourt, bicSince, bouncesCount,
   ageStr, ageMarker, ciChip, mergeChip, reviewChip, priorityChip,
+  effectiveReviewDecision,
 } from "../lib.mjs";
 
 // ── buildPayload ──────────────────────────────────────────────────────────────
@@ -933,4 +934,98 @@ test("priorityChip: no CI → falls through to reviewChip", () => {
   const pr = makeReviewPr({ ciStatus: null, reviewDecision: "REVIEW_REQUIRED", reviewRequests: ["bob"] });
   const chip = priorityChip(pr, ME);
   assert.equal(chip.cls, "yellow");
+});
+
+// ── effectiveReviewDecision ───────────────────────────────────────────────────
+// GitHub leaves `reviewDecision` empty on repos that require 0 approvals and
+// have no pending review request, even when real reviews exist.
+
+test("effectiveReviewDecision: non-empty field passes through untouched", () => {
+  assert.equal(
+    effectiveReviewDecision(makeReviewPr({
+      reviewDecision: "REVIEW_REQUIRED",
+      latestReviews: [{ login: "bob", state: "APPROVED" }],
+    })),
+    "REVIEW_REQUIRED",
+  );
+});
+
+test("effectiveReviewDecision: blank field + approval → APPROVED", () => {
+  assert.equal(
+    effectiveReviewDecision(makeReviewPr({
+      reviewDecision: "",
+      latestReviews: [{ login: "bob", state: "APPROVED" }],
+    })),
+    "APPROVED",
+  );
+});
+
+test("effectiveReviewDecision: blank field + blocker outranks approval", () => {
+  assert.equal(
+    effectiveReviewDecision(makeReviewPr({
+      reviewDecision: "",
+      latestReviews: [
+        { login: "bob", state: "APPROVED" },
+        { login: "carol", state: "CHANGES_REQUESTED" },
+      ],
+    })),
+    "CHANGES_REQUESTED",
+  );
+});
+
+test("effectiveReviewDecision: blank field ignores the author's own review", () => {
+  assert.equal(
+    effectiveReviewDecision(makeReviewPr({
+      reviewDecision: "",
+      latestReviews: [{ login: "alice", state: "APPROVED" }],
+    })),
+    "",
+  );
+});
+
+test("effectiveReviewDecision: blank field + pending request → REVIEW_REQUIRED", () => {
+  assert.equal(
+    effectiveReviewDecision(makeReviewPr({ reviewDecision: "", reviewRequests: ["bob"] })),
+    "REVIEW_REQUIRED",
+  );
+});
+
+test("effectiveReviewDecision: blank field + no reviews at all stays blank", () => {
+  assert.equal(effectiveReviewDecision(makeReviewPr({ reviewDecision: "" })), "");
+});
+
+test("reviewChip: author + blank decision + approval → ready to merge", () => {
+  const pr = makeReviewPr({
+    reviewDecision: "",
+    latestReviews: [{ login: "bob", state: "APPROVED" }],
+  });
+  const chip = reviewChip(pr, ME);
+  assert.equal(chip.cls, "green");
+  assert.ok(chip.text.includes("merge"));
+});
+
+test("reviewChip: author + blank decision + blocker → fix requested", () => {
+  const pr = makeReviewPr({
+    reviewDecision: "",
+    latestReviews: [{ login: "bob", state: "CHANGES_REQUESTED" }],
+  });
+  const chip = reviewChip(pr, ME);
+  assert.equal(chip.cls, "review-changes");
+  assert.ok(chip.text.includes("Fix"));
+});
+
+test("bicSince: author + blank decision + approval → approval timestamp", () => {
+  const pr = makeReviewPr({
+    reviewDecision: "",
+    latestReviews: [{ login: "bob", state: "APPROVED", submittedAt: "2024-01-12T09:00:00Z" }],
+  });
+  assert.equal(bicSince(pr, ME), "2024-01-12T09:00:00Z");
+});
+
+test("ballInCourt: blank decision + approval, no pending requests → author", () => {
+  const pr = makeReviewPr({
+    reviewDecision: "",
+    latestReviews: [{ login: "bob", state: "APPROVED", submittedAt: "2024-01-12T09:00:00Z" }],
+  });
+  assert.ok(ballInCourt(pr, ME).has("alice"));
 });

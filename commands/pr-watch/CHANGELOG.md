@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.17.3 (2026-09-11)
+
+### Approved PRs stayed stuck on "🟡 In review"
+
+GitHub only fills in a PR's aggregate `reviewDecision` when a review is required by branch protection or explicitly requested. On a repo with `required_approving_review_count: 0` and no pending request, the field comes back **empty even when the PR is approved** — the green check in the GitHub UI is the review's own state, which is a different thing.
+
+The author-lane CTA chip read only that aggregate field, so an approved PR fell through to the catch-all "🟡 In review". Ball-in-court was already right, because it falls back to `latestReviews`.
+
+New `effectiveReviewDecision(pr)` derives the verdict from `latestReviews` whenever the field is blank: a blocker outranks an approval, the author's own review is ignored, and a pending request means `REVIEW_REQUIRED`. `reviewChip`, `ballInCourt`, and `bicSince` all read it now, so an approved PR shows **🟢 Ready to merge** and its age counts from the approval instead of falling back to the PR's last-updated time.
+
+Event payloads still carry GitHub's raw field. Approvals already surface in the event stream through `latestReviews`.
+
 ## 0.17.2 (2026-09-10)
 
 ### Dashboard

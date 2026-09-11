@@ -127,6 +127,22 @@ export function computeEvents(summaries, enrichedMap, prevState, isFirstRun, now
 
 // ── Per-PR computations (used by the dashboard, exported for tests) ──────────
 
+// GitHub only computes the PR-level `reviewDecision` when a review is required
+// by branch protection or explicitly requested. On a repo with
+// `required_approving_review_count: 0` and no pending request the field comes
+// back empty even though real APPROVED / CHANGES_REQUESTED reviews exist — the
+// UI still shows its green check, because that check is the review's own state.
+// Derive the verdict from the reviews themselves whenever the field is blank.
+export function effectiveReviewDecision(pr) {
+  if (pr.reviewDecision) return pr.reviewDecision;
+  const authorLogin = pr.author && pr.author.login;
+  const others = (pr.latestReviews || []).filter((r) => r.login && r.login !== authorLogin);
+  if (others.some((r) => r.state === "CHANGES_REQUESTED")) return "CHANGES_REQUESTED";
+  if (others.some((r) => r.state === "APPROVED")) return "APPROVED";
+  if (others.length > 0 || (pr.reviewRequests || []).length > 0) return "REVIEW_REQUIRED";
+  return "";
+}
+
 // Latest non-DISMISSED review by `me` on this PR, or null.
 export function latestMyReview(pr, me) {
   const mine = (pr.reviews || [])
@@ -200,7 +216,7 @@ export function ballInCourt(pr, me) {
 
   if (authorOwesReviewerFeedback(pr, pendingReReq, authorLogin)) balls.add(authorLogin);
 
-  if (pr.reviewDecision === "APPROVED" && pendingReReq.size === 0) {
+  if (effectiveReviewDecision(pr) === "APPROVED" && pendingReReq.size === 0) {
     balls.add(authorLogin);
   }
 
@@ -219,7 +235,7 @@ export function ballInCourt(pr, me) {
   if (
     (pr.reviewRequests || []).length === 0 &&
     (pr.latestReviews || []).length === 0 &&
-    pr.reviewDecision !== "APPROVED"
+    effectiveReviewDecision(pr) !== "APPROVED"
   ) {
     balls.add(authorLogin);
   }
@@ -231,15 +247,16 @@ export function ballInCourt(pr, me) {
 // PR timestamps. Returns an ISO timestamp or null when we can't tell.
 export function bicSince(pr, me) {
   const authorLogin = pr.author && pr.author.login;
+  const decision = effectiveReviewDecision(pr);
   if (authorLogin === me) {
-    if (pr.reviewDecision === "CHANGES_REQUESTED") {
+    if (decision === "CHANGES_REQUESTED") {
       const pendingReReq = new Set(pr.reviewRequests || []);
       const blocker = (pr.latestReviews || [])
         .filter((r) => r.state === "CHANGES_REQUESTED" && !pendingReReq.has(r.login))
         .sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0))[0];
       if (blocker && blocker.submittedAt) return blocker.submittedAt;
     }
-    if (pr.reviewDecision === "APPROVED") {
+    if (decision === "APPROVED") {
       const approval = (pr.latestReviews || [])
         .filter((r) => r.state === "APPROVED")
         .sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0))[0];
@@ -319,10 +336,11 @@ export function mergeChip(pr) {
 // across lanes — top says what's asked of you, bottom says what they're doing.
 export function reviewChip(pr, me) {
   if (pr.role === "author") {
-    if (pr.reviewDecision === "APPROVED") {
+    const decision = effectiveReviewDecision(pr);
+    if (decision === "APPROVED") {
       return { cls: "green", text: "🟢 Ready to merge" };
     }
-    if (pr.reviewDecision === "CHANGES_REQUESTED") {
+    if (decision === "CHANGES_REQUESTED") {
       const pendingReReq = new Set(pr.reviewRequests || []);
       const blockersUnaddressed = (pr.latestReviews || [])
         .some((r) => r.state === "CHANGES_REQUESTED" && !pendingReReq.has(r.login));
