@@ -4,7 +4,7 @@ How pr-watch decides whether a PR is in **YOUR TURN** (top lane) or **WAITING** 
 
 **Installed copy:** `~/.claude/pr-watch/lib.mjs` (keep in sync with this repo via `./scripts/sync-global.sh`).
 
-**Version:** see `poll.mjs` line 2 (currently **0.17.2**).
+**Version:** see `poll.mjs` line 2 (currently **0.17.4**).
 
 ---
 
@@ -31,6 +31,20 @@ Formal review outcomes are **not** the same as “left comments on the PR”:
 
 Inline or timeline comments **without** submitting a review often produce **no** row in `reviews` / `latestReviews`. Mid-review with only threads → ball stays with a reviewer **still on** `reviewRequests`.
 
+### `reviewDecision` is often empty (0.17.3+)
+
+GitHub's PR-level `reviewDecision` is an **aggregate verdict against repo policy**, not a summary of the reviews. It is only computed when a review is **required** by branch protection or **explicitly requested**. On a repo with `required_approving_review_count: 0` and nobody on `reviewRequests`, it comes back **empty even on an approved PR** — the green check you see on GitHub belongs to the individual review, which is a separate thing.
+
+`effectiveReviewDecision(pr)` closes that gap and is what `ballInCourt`, `bicSince` and `reviewChip` read:
+
+| `reviewDecision` | Derived from `latestReviews` (excluding the author's own) |
+|---|---|
+| Non-empty | Passed through unchanged |
+| Empty + any `CHANGES_REQUESTED` | `CHANGES_REQUESTED` (a blocker outranks an approval) |
+| Empty + any `APPROVED` | `APPROVED` |
+| Empty + reviews or `reviewRequests` exist | `REVIEW_REQUIRED` |
+| Empty + nothing at all | `""` |
+
 ---
 
 ## Rules (evaluation order)
@@ -48,9 +62,10 @@ Inline or timeline comments **without** submitting a review often produce **no**
 | Condition | Who has the ball |
 |-----------|------------------|
 | On `reviewRequests` | That login (mid-review or re-requested) |
-| Submitted `COMMENTED` / `CHANGES_REQUESTED`, off `reviewRequests` | **Author** (process feedback) |
+| Latest review is `PENDING` or empty-body `COMMENTED` (**Add single comment**) | **That reviewer** (mid-review, 0.17.4+) |
+| Submitted `COMMENTED` (with summary) / `CHANGES_REQUESTED`, off `reviewRequests` | **Author** (process feedback) |
 | Submitted `COMMENTED` / `CHANGES_REQUESTED` / `APPROVED`, off `reviewRequests` | **Not** that reviewer (0.13+) |
-| `reviewDecision === APPROVED`, no pending requests | Author (merge; chips show conflict/behind if any) |
+| `effectiveReviewDecision === APPROVED`, no pending requests | Author (merge; chips show conflict/behind if any) |
 | `ciStatus` **FAILURE** | Author (fix checks) |
 | `ciStatus` **PENDING** | *Not* author — ⏳ chip only |
 | `mergeStateStatus` **DIRTY** / **BEHIND** / etc. | *Not* BIC — chips only; author in court when approved or owes feedback |
@@ -64,7 +79,7 @@ Only adds **you** when:
 
 - You are on `reviewRequests`, or
 - You have no submitted review yet (`!my`), or
-- Your latest review is `PENDING`
+- Your latest review is `PENDING`, or an empty-body `COMMENTED` (single inline comment)
 
 Does **not** add you after you submitted `COMMENTED` / `CHANGES_REQUESTED` / `APPROVED` and are off `reviewRequests`.
 
@@ -80,6 +95,11 @@ Does **not** add you after you submitted `COMMENTED` / `CHANGES_REQUESTED` / `AP
 ### Wilfred mid-review (comments, no submit)
 
 - Still on `reviewRequests` → **Wilfred’s** court only.
+
+### You left a single inline comment on someone's PR
+
+- **Add single comment** creates an empty-body `COMMENTED` review and drops you from `reviewRequests`. It's still **your** court until you finish with Approve / Request changes / Comment (with a summary).
+- **Heuristic, not a GitHub fact:** GitHub stores "Add single comment" and "Submit review → Comment" the same way; the summary body is the only difference. Submitting Comment with an empty summary keeps you in court. **Convention: always write a summary when finishing a review** (the `pr` skill enforces this).
 
 ### Wilfred submitted “Comment” review
 
@@ -203,5 +223,6 @@ Replace `YOU` / fields with a snapshot from `~/.claude/pr-watch/current.json`.
 | 0.15.0 | CI pending/failure + merge blocked → author (superseded by 0.17.0) |
 | 0.16.0 | BEHIND during review no longer → author; DIRTY + CI only; BEHIND when APPROVED |
 | 0.17.0 | BIC = act to unblock; CI pending + merge state chips-only |
+| 0.17.4 | Single inline comment (empty-body `COMMENTED`) keeps the reviewer in court until Approve / Request changes / Comment-with-summary |
 
 Full details: [CHANGELOG.md](CHANGELOG.md).

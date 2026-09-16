@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.17.4 (2026-09-16)
+
+### A single inline comment ended your review
+
+On GitHub, **Add single comment** on a diff line files a `COMMENTED` review with an empty body and drops you from `reviewRequests`. Since 0.13 any submitted `COMMENTED` review took the reviewer off the ball, so one inline comment moved the PR to the author's court while you were still reviewing.
+
+New `isReviewInProgress(r)`: a `PENDING` review, or a `COMMENTED` review with an empty body, is mid-review. Your turn ends only on the review bar's final choice: **Approve**, **Request changes**, or **Comment** with a summary. While a reviewer is mid-review, they keep the ball and the author waits. That applies in both directions, including other reviewers on your own PRs. `latestReviews` rows now carry `hasBody` so the author view can tell the difference. Rows from older snapshots without `hasBody` count as submitted. The "no reviewers yet → author" rule now checks any review activity, not just `latestReviews`, which leaves out your own reviews. The reviewer chip now reads **💬 Author to respond** after a submitted Comment review.
+
+**Caveat:** if you submit a **Comment** review with pending inline comments and leave the summary empty, it looks the same as a single comment, so you keep the ball. Add a one-line summary to hand the PR back.
+
+## 0.17.3 (2026-09-11)
+
+### Approved PRs stayed stuck on "🟡 In review"
+
+GitHub only fills in a PR's aggregate `reviewDecision` when a review is required by branch protection or explicitly requested. On a repo with `required_approving_review_count: 0` and no pending request, the field comes back **empty even when the PR is approved** — the green check in the GitHub UI is the review's own state, which is a different thing.
+
+The author-lane CTA chip read only that aggregate field, so an approved PR fell through to the catch-all "🟡 In review". Ball-in-court was already right, because it falls back to `latestReviews`.
+
+New `effectiveReviewDecision(pr)` derives the verdict from `latestReviews` whenever the field is blank: a blocker outranks an approval, the author's own review is ignored, and a pending request means `REVIEW_REQUIRED`. `reviewChip`, `ballInCourt`, and `bicSince` all read it now, so an approved PR shows **🟢 Ready to merge** and its age counts from the approval instead of falling back to the PR's last-updated time.
+
+Event payloads still carry GitHub's raw field. Approvals already surface in the event stream through `latestReviews`.
+
 ## 0.17.2 (2026-09-10)
 
 ### Dashboard

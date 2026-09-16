@@ -4,6 +4,7 @@ import {
   buildPayload, ciSummary, computeEvents, computeStopTime, diffPr,
   latestMyReview, ballInCourt, bicSince, bouncesCount,
   ageStr, ageMarker, ciChip, mergeChip, reviewChip, priorityChip,
+  effectiveReviewDecision, isReviewInProgress,
 } from "../lib.mjs";
 
 // ── buildPayload ──────────────────────────────────────────────────────────────
@@ -933,4 +934,174 @@ test("priorityChip: no CI → falls through to reviewChip", () => {
   const pr = makeReviewPr({ ciStatus: null, reviewDecision: "REVIEW_REQUIRED", reviewRequests: ["bob"] });
   const chip = priorityChip(pr, ME);
   assert.equal(chip.cls, "yellow");
+});
+
+// ── effectiveReviewDecision ───────────────────────────────────────────────────
+// GitHub leaves `reviewDecision` empty on repos that require 0 approvals and
+// have no pending review request, even when real reviews exist.
+
+test("effectiveReviewDecision: non-empty field passes through untouched", () => {
+  assert.equal(
+    effectiveReviewDecision(makeReviewPr({
+      reviewDecision: "REVIEW_REQUIRED",
+      latestReviews: [{ login: "bob", state: "APPROVED" }],
+    })),
+    "REVIEW_REQUIRED",
+  );
+});
+
+test("effectiveReviewDecision: blank field + approval → APPROVED", () => {
+  assert.equal(
+    effectiveReviewDecision(makeReviewPr({
+      reviewDecision: "",
+      latestReviews: [{ login: "bob", state: "APPROVED" }],
+    })),
+    "APPROVED",
+  );
+});
+
+test("effectiveReviewDecision: blank field + blocker outranks approval", () => {
+  assert.equal(
+    effectiveReviewDecision(makeReviewPr({
+      reviewDecision: "",
+      latestReviews: [
+        { login: "bob", state: "APPROVED" },
+        { login: "carol", state: "CHANGES_REQUESTED" },
+      ],
+    })),
+    "CHANGES_REQUESTED",
+  );
+});
+
+test("effectiveReviewDecision: blank field ignores the author's own review", () => {
+  assert.equal(
+    effectiveReviewDecision(makeReviewPr({
+      reviewDecision: "",
+      latestReviews: [{ login: "alice", state: "APPROVED" }],
+    })),
+    "",
+  );
+});
+
+test("effectiveReviewDecision: blank field + pending request → REVIEW_REQUIRED", () => {
+  assert.equal(
+    effectiveReviewDecision(makeReviewPr({ reviewDecision: "", reviewRequests: ["bob"] })),
+    "REVIEW_REQUIRED",
+  );
+});
+
+test("effectiveReviewDecision: blank field + no reviews at all stays blank", () => {
+  assert.equal(effectiveReviewDecision(makeReviewPr({ reviewDecision: "" })), "");
+});
+
+test("reviewChip: author + blank decision + approval → ready to merge", () => {
+  const pr = makeReviewPr({
+    reviewDecision: "",
+    latestReviews: [{ login: "bob", state: "APPROVED" }],
+  });
+  const chip = reviewChip(pr, ME);
+  assert.equal(chip.cls, "green");
+  assert.ok(chip.text.includes("merge"));
+});
+
+test("reviewChip: author + blank decision + blocker → fix requested", () => {
+  const pr = makeReviewPr({
+    reviewDecision: "",
+    latestReviews: [{ login: "bob", state: "CHANGES_REQUESTED" }],
+  });
+  const chip = reviewChip(pr, ME);
+  assert.equal(chip.cls, "review-changes");
+  assert.ok(chip.text.includes("Fix"));
+});
+
+test("bicSince: author + blank decision + approval → approval timestamp", () => {
+  const pr = makeReviewPr({
+    reviewDecision: "",
+    latestReviews: [{ login: "bob", state: "APPROVED", submittedAt: "2024-01-12T09:00:00Z" }],
+  });
+  assert.equal(bicSince(pr, ME), "2024-01-12T09:00:00Z");
+});
+
+test("ballInCourt: blank decision + approval, no pending requests → author", () => {
+  const pr = makeReviewPr({
+    reviewDecision: "",
+    latestReviews: [{ login: "bob", state: "APPROVED", submittedAt: "2024-01-12T09:00:00Z" }],
+  });
+  assert.ok(ballInCourt(pr, ME).has("alice"));
+});
+
+// ── isReviewInProgress: "Add single comment" vs submitted Comment review ─────
+// A single inline comment files an empty-body COMMENTED review and drops the
+// reviewer from reviewRequests — that's mid-review, not a verdict.
+
+test("isReviewInProgress: empty-body COMMENTED is a single comment", () => {
+  assert.equal(isReviewInProgress({ state: "COMMENTED", body: "" }), true);
+  assert.equal(isReviewInProgress({ state: "COMMENTED", hasBody: false }), true);
+});
+
+test("isReviewInProgress: COMMENTED with a body is a submitted review", () => {
+  assert.equal(isReviewInProgress({ state: "COMMENTED", body: "Looks mostly fine" }), false);
+  assert.equal(isReviewInProgress({ state: "COMMENTED", hasBody: true }), false);
+});
+
+test("isReviewInProgress: legacy row without body info counts as submitted", () => {
+  assert.equal(isReviewInProgress({ state: "COMMENTED" }), false);
+});
+
+test("isReviewInProgress: PENDING yes, verdicts no", () => {
+  assert.equal(isReviewInProgress({ state: "PENDING" }), true);
+  assert.equal(isReviewInProgress({ state: "APPROVED", body: "" }), false);
+  assert.equal(isReviewInProgress({ state: "CHANGES_REQUESTED", body: "" }), false);
+});
+
+test("ballInCourt: reviewer after single comments keeps the ball, author waits", () => {
+  const pr = makeReviewPr({
+    author: { login: "feargal" },
+    role: "reviewer",
+    reviewDecision: "",
+    reviews: [{ author: { login: "alice" }, state: "COMMENTED", body: "", submittedAt: "2024-01-12T09:00:00Z" }],
+  });
+  const balls = ballInCourt(pr, ME);
+  assert.ok(balls.has(ME));
+  assert.ok(!balls.has("feargal"));
+});
+
+test("ballInCourt: reviewer after submitted Comment review → author", () => {
+  const pr = makeReviewPr({
+    author: { login: "feargal" },
+    role: "reviewer",
+    reviewDecision: "",
+    reviews: [{ author: { login: "alice" }, state: "COMMENTED", body: "A few notes", submittedAt: "2024-01-12T09:00:00Z" }],
+  });
+  const balls = ballInCourt(pr, ME);
+  assert.ok(!balls.has(ME));
+  assert.ok(balls.has("feargal"));
+});
+
+test("ballInCourt: author view — other reviewer's single comment keeps them in court", () => {
+  const pr = makeReviewPr({
+    reviewDecision: "",
+    latestReviews: [{ login: "bob", state: "COMMENTED", hasBody: false, submittedAt: "2024-01-12T09:00:00Z" }],
+  });
+  const balls = ballInCourt(pr, ME);
+  assert.ok(balls.has("bob"));
+  assert.ok(!balls.has("alice"));
+});
+
+test("ballInCourt: author view — submitted Comment review → author", () => {
+  const pr = makeReviewPr({
+    reviewDecision: "",
+    latestReviews: [{ login: "bob", state: "COMMENTED", hasBody: true, submittedAt: "2024-01-12T09:00:00Z" }],
+  });
+  const balls = ballInCourt(pr, ME);
+  assert.ok(balls.has("alice"));
+  assert.ok(!balls.has("bob"));
+});
+
+test("reviewChip: reviewer mid-review vs submitted Comment", () => {
+  const base = { author: { login: "feargal" }, role: "reviewer" };
+  const mid = makeReviewPr({ ...base, reviews: [{ author: { login: "alice" }, state: "COMMENTED", body: "", submittedAt: "2024-01-12T09:00:00Z" }] });
+  const done = makeReviewPr({ ...base, reviews: [{ author: { login: "alice" }, state: "COMMENTED", body: "notes", submittedAt: "2024-01-12T09:00:00Z" }] });
+  assert.ok(reviewChip(mid, ME).text.includes("in progress"));
+  assert.ok(reviewChip(done, ME).text.includes("respond"));
 });

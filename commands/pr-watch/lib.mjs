@@ -127,6 +127,37 @@ export function computeEvents(summaries, enrichedMap, prevState, isFirstRun, now
 
 // ── Per-PR computations (used by the dashboard, exported for tests) ──────────
 
+// GitHub only computes the PR-level `reviewDecision` when a review is required
+// by branch protection or explicitly requested. On a repo with
+// `required_approving_review_count: 0` and no pending request the field comes
+// back empty even though real APPROVED / CHANGES_REQUESTED reviews exist — the
+// UI still shows its green check, because that check is the review's own state.
+// Derive the verdict from the reviews themselves whenever the field is blank.
+export function effectiveReviewDecision(pr) {
+  if (pr.reviewDecision) return pr.reviewDecision;
+  const authorLogin = pr.author && pr.author.login;
+  const others = (pr.latestReviews || []).filter((r) => r.login && r.login !== authorLogin);
+  if (others.some((r) => r.state === "CHANGES_REQUESTED")) return "CHANGES_REQUESTED";
+  if (others.some((r) => r.state === "APPROVED")) return "APPROVED";
+  if (others.length > 0 || (pr.reviewRequests || []).length > 0) return "REVIEW_REQUIRED";
+  return "";
+}
+
+// True when this review doesn't end the reviewer's turn. GitHub's review bar
+// ends with an explicit choice — Approve / Request changes / Comment — but
+// "Add single comment" on a diff line *also* files a COMMENTED review (empty
+// body) and drops the reviewer from reviewRequests. We treat an empty-body
+// COMMENTED as that mid-review single comment, and PENDING as a draft review.
+// Accepts both raw `reviews` rows (body) and `latestReviews` rows (hasBody);
+// rows with neither field (older snapshots) count as submitted.
+export function isReviewInProgress(r) {
+  if (!r) return false;
+  if (r.state === "PENDING") return true;
+  if (r.state !== "COMMENTED") return false;
+  if (typeof r.body === "string") return !r.body.trim();
+  return r.hasBody === false;
+}
+
 // Latest non-DISMISSED review by `me` on this PR, or null.
 export function latestMyReview(pr, me) {
   const mine = (pr.reviews || [])
@@ -144,6 +175,7 @@ export function latestMyReview(pr, me) {
 //   CI failure                              → author (fix checks)
 //   reviewer feedback (COMMENTED/CR, done)    → author (process + other reviewers may still be pending)
 //   reviewer still requested / PENDING      → that reviewer (mid-review)
+//   reviewer's latest is a single comment   → that reviewer (mid-review, see isReviewInProgress)
 //   reviewer submitted COMMENTED/CR/APPROVED, not re-requested → not reviewer (author)
 //   author with no engagement at all        → author (add reviewers)
 // Merge state (DIRTY/BEHIND) and CI pending do not affect BIC — chips only.
@@ -152,8 +184,15 @@ function authorOwesReviewerFeedback(pr, pendingReReq, authorLogin) {
     r.login &&
     r.login !== authorLogin &&
     (r.state === "CHANGES_REQUESTED" || r.state === "COMMENTED") &&
+    !isReviewInProgress(r) &&
     !pendingReReq.has(r.login)
   );
+}
+
+function reviewersMidReview(pr, authorLogin) {
+  return (pr.latestReviews || [])
+    .filter((r) => r.login && r.login !== authorLogin && isReviewInProgress(r))
+    .map((r) => r.login);
 }
 
 function allLatestReviewsApproved(pr) {
@@ -197,10 +236,11 @@ export function ballInCourt(pr, me) {
   }
 
   for (const login of pendingReReq) balls.add(login);
+  for (const login of reviewersMidReview(pr, authorLogin)) balls.add(login);
 
   if (authorOwesReviewerFeedback(pr, pendingReReq, authorLogin)) balls.add(authorLogin);
 
-  if (pr.reviewDecision === "APPROVED" && pendingReReq.size === 0) {
+  if (effectiveReviewDecision(pr) === "APPROVED" && pendingReReq.size === 0) {
     balls.add(authorLogin);
   }
 
@@ -212,14 +252,14 @@ export function ballInCourt(pr, me) {
       balls.add(me);
     } else {
       const my = latestMyReview(pr, me);
-      if (!my || my.state === "PENDING") balls.add(me);
+      if (!my || isReviewInProgress(my)) balls.add(me);
     }
   }
 
   if (
     (pr.reviewRequests || []).length === 0 &&
-    (pr.latestReviews || []).length === 0 &&
-    pr.reviewDecision !== "APPROVED"
+    !hasReviewActivity(pr) &&
+    effectiveReviewDecision(pr) !== "APPROVED"
   ) {
     balls.add(authorLogin);
   }
@@ -231,15 +271,16 @@ export function ballInCourt(pr, me) {
 // PR timestamps. Returns an ISO timestamp or null when we can't tell.
 export function bicSince(pr, me) {
   const authorLogin = pr.author && pr.author.login;
+  const decision = effectiveReviewDecision(pr);
   if (authorLogin === me) {
-    if (pr.reviewDecision === "CHANGES_REQUESTED") {
+    if (decision === "CHANGES_REQUESTED") {
       const pendingReReq = new Set(pr.reviewRequests || []);
       const blocker = (pr.latestReviews || [])
         .filter((r) => r.state === "CHANGES_REQUESTED" && !pendingReReq.has(r.login))
         .sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0))[0];
       if (blocker && blocker.submittedAt) return blocker.submittedAt;
     }
-    if (pr.reviewDecision === "APPROVED") {
+    if (decision === "APPROVED") {
       const approval = (pr.latestReviews || [])
         .filter((r) => r.state === "APPROVED")
         .sort((a, b) => new Date(b.submittedAt || 0) - new Date(a.submittedAt || 0))[0];
@@ -250,7 +291,7 @@ export function bicSince(pr, me) {
     }
   } else if (pr.role === "reviewer") {
     const my = latestMyReview(pr, me);
-    if (my && my.submittedAt) return my.submittedAt;
+    if (my && my.submittedAt && !isReviewInProgress(my)) return my.submittedAt;
   }
   return null;
 }
@@ -319,10 +360,11 @@ export function mergeChip(pr) {
 // across lanes — top says what's asked of you, bottom says what they're doing.
 export function reviewChip(pr, me) {
   if (pr.role === "author") {
-    if (pr.reviewDecision === "APPROVED") {
+    const decision = effectiveReviewDecision(pr);
+    if (decision === "APPROVED") {
       return { cls: "green", text: "🟢 Ready to merge" };
     }
-    if (pr.reviewDecision === "CHANGES_REQUESTED") {
+    if (decision === "CHANGES_REQUESTED") {
       const pendingReReq = new Set(pr.reviewRequests || []);
       const blockersUnaddressed = (pr.latestReviews || [])
         .some((r) => r.state === "CHANGES_REQUESTED" && !pendingReReq.has(r.login));
@@ -345,6 +387,9 @@ export function reviewChip(pr, me) {
   if (!my) return { cls: "yellow", text: "🟡 Review requested" };
   if (my.state === "CHANGES_REQUESTED") return { cls: "review-changes", text: "🟠 Author to fix" };
   if (my.state === "APPROVED") return { cls: "green", text: "🟢 Author to merge" };
+  if (my.state === "COMMENTED" && !isReviewInProgress(my)) {
+    return { cls: "yellow", text: "💬 Author to respond" };
+  }
   return { cls: "yellow", text: "🟡 Review in progress" };
 }
 
