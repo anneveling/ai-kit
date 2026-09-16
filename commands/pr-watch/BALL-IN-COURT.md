@@ -99,6 +99,7 @@ Does **not** add you after you submitted `COMMENTED` / `CHANGES_REQUESTED` / `AP
 ### You left a single inline comment on someone's PR
 
 - **Add single comment** creates an empty-body `COMMENTED` review and drops you from `reviewRequests`. It's still **your** court until you finish with Approve / Request changes / Comment (with a summary).
+- **Heuristic, not a GitHub fact:** GitHub stores "Add single comment" and "Submit review → Comment" the same way; the summary body is the only difference. Submitting Comment with an empty summary keeps you in court. **Convention: always write a summary when finishing a review** (the `pr` skill enforces this).
 
 ### Wilfred submitted “Comment” review
 
