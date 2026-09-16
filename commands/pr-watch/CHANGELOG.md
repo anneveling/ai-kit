@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.17.4 (2026-09-16)
+
+### A single inline comment ended your review
+
+On GitHub, **Add single comment** on a diff line files a `COMMENTED` review with an empty body and drops you from `reviewRequests`. Since 0.13 any submitted `COMMENTED` review took the reviewer off the ball, so one inline comment moved the PR to the author's court while you were still reviewing.
+
+New `isReviewInProgress(r)`: a `PENDING` review, or a `COMMENTED` review with an empty body, is mid-review. Your turn ends only on the review bar's final choice: **Approve**, **Request changes**, or **Comment** with a summary. While a reviewer is mid-review, they keep the ball and the author waits. That applies in both directions, including other reviewers on your own PRs. `latestReviews` rows now carry `hasBody` so the author view can tell the difference. Rows from older snapshots without `hasBody` count as submitted. The "no reviewers yet → author" rule now checks any review activity, not just `latestReviews`, which leaves out your own reviews. The reviewer chip now reads **💬 Author to respond** after a submitted Comment review.
+
+**Caveat:** if you submit a **Comment** review with pending inline comments and leave the summary empty, it looks the same as a single comment, so you keep the ball. Add a one-line summary to hand the PR back.
+
 ## 0.17.3 (2026-09-11)
 
 ### Approved PRs stayed stuck on "🟡 In review"

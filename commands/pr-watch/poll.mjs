@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// poll.mjs — version 0.17.3
+// poll.mjs — version 0.17.4
 // source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch
 // Polls GitHub for open PRs you authored or are requested to review.
 // Emits JSON change-event lines to stdout when anything changes.
@@ -30,7 +30,7 @@ import { fileURLToPath } from "url";
 import { buildPayload, ciSummary, computeEvents, computeStopTime, diffPr } from "./lib.mjs";
 
 const SCHEMA_VERSION = 1;
-const POLLER_VERSION = "0.17.3";
+const POLLER_VERSION = "0.17.4";
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 
 // ── Preflight ────────────────────────────────────────────────────────────────
@@ -103,7 +103,12 @@ function latestReviewsFromDetails(details, me) {
         if (!acc[login] || r.submittedAt > acc[login].submittedAt) acc[login] = r;
         return acc;
       }, {}),
-  ).map((r) => ({ login: r.author.login, state: r.state, submittedAt: r.submittedAt }));
+  ).map((r) => ({
+    login: r.author.login,
+    state: r.state,
+    submittedAt: r.submittedAt,
+    hasBody: Boolean(r.body && r.body.trim()),
+  }));
 }
 
 function buildEnrichedFromDetails(details, role, repo, me) {

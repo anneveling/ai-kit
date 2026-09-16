@@ -4,7 +4,7 @@ How pr-watch decides whether a PR is in **YOUR TURN** (top lane) or **WAITING** 
 
 **Installed copy:** `~/.claude/pr-watch/lib.mjs` (keep in sync with this repo via `./scripts/sync-global.sh`).
 
-**Version:** see `poll.mjs` line 2 (currently **0.17.3**).
+**Version:** see `poll.mjs` line 2 (currently **0.17.4**).
 
 ---
 
@@ -62,7 +62,8 @@ GitHub's PR-level `reviewDecision` is an **aggregate verdict against repo policy
 | Condition | Who has the ball |
 |-----------|------------------|
 | On `reviewRequests` | That login (mid-review or re-requested) |
-| Submitted `COMMENTED` / `CHANGES_REQUESTED`, off `reviewRequests` | **Author** (process feedback) |
+| Latest review is `PENDING` or empty-body `COMMENTED` (**Add single comment**) | **That reviewer** (mid-review, 0.17.4+) |
+| Submitted `COMMENTED` (with summary) / `CHANGES_REQUESTED`, off `reviewRequests` | **Author** (process feedback) |
 | Submitted `COMMENTED` / `CHANGES_REQUESTED` / `APPROVED`, off `reviewRequests` | **Not** that reviewer (0.13+) |
 | `effectiveReviewDecision === APPROVED`, no pending requests | Author (merge; chips show conflict/behind if any) |
 | `ciStatus` **FAILURE** | Author (fix checks) |
@@ -78,7 +79,7 @@ Only adds **you** when:
 
 - You are on `reviewRequests`, or
 - You have no submitted review yet (`!my`), or
-- Your latest review is `PENDING`
+- Your latest review is `PENDING`, or an empty-body `COMMENTED` (single inline comment)
 
 Does **not** add you after you submitted `COMMENTED` / `CHANGES_REQUESTED` / `APPROVED` and are off `reviewRequests`.
 
@@ -94,6 +95,10 @@ Does **not** add you after you submitted `COMMENTED` / `CHANGES_REQUESTED` / `AP
 ### Wilfred mid-review (comments, no submit)
 
 - Still on `reviewRequests` → **Wilfred’s** court only.
+
+### You left a single inline comment on someone's PR
+
+- **Add single comment** creates an empty-body `COMMENTED` review and drops you from `reviewRequests`. It's still **your** court until you finish with Approve / Request changes / Comment (with a summary).
 
 ### Wilfred submitted “Comment” review
 
@@ -217,5 +222,6 @@ Replace `YOU` / fields with a snapshot from `~/.claude/pr-watch/current.json`.
 | 0.15.0 | CI pending/failure + merge blocked → author (superseded by 0.17.0) |
 | 0.16.0 | BEHIND during review no longer → author; DIRTY + CI only; BEHIND when APPROVED |
 | 0.17.0 | BIC = act to unblock; CI pending + merge state chips-only |
+| 0.17.4 | Single inline comment (empty-body `COMMENTED`) keeps the reviewer in court until Approve / Request changes / Comment-with-summary |
 
 Full details: [CHANGELOG.md](CHANGELOG.md).
