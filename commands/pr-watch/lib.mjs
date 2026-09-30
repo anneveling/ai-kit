@@ -362,35 +362,35 @@ export function reviewChip(pr, me) {
   if (pr.role === "author") {
     const decision = effectiveReviewDecision(pr);
     if (decision === "APPROVED") {
-      return { cls: "green", text: "🟢 Ready to merge" };
+      return { cls: "green", text: "🟢 Ready to merge", action: "merge" };
     }
     if (decision === "CHANGES_REQUESTED") {
       const pendingReReq = new Set(pr.reviewRequests || []);
       const blockersUnaddressed = (pr.latestReviews || [])
         .some((r) => r.state === "CHANGES_REQUESTED" && !pendingReReq.has(r.login));
       return blockersUnaddressed
-        ? { cls: "review-changes", text: "🟠 Fix requested" }
-        : { cls: "yellow", text: "🟡 Re-review pending" };
+        ? { cls: "review-changes", text: "🟠 Fix requested", action: "fix" }
+        : { cls: "yellow", text: "🟡 Re-review pending", action: "wait" };
     }
     if ((pr.reviewRequests || []).length === 0 && (pr.latestReviews || []).length === 0) {
-      return { cls: "", text: "⚪ Reviewers needed" };
+      return { cls: "", text: "⚪ Reviewers needed", action: "reviewers" };
     }
-    return { cls: "yellow", text: "🟡 In review" };
+    return { cls: "yellow", text: "🟡 In review", action: "wait" };
   }
   // Reviewer perspective.
   const my = latestMyReview(pr, me);
   if ((pr.reviewRequests || []).includes(me)) {
     return my
-      ? { cls: "yellow", text: "🟡 Re-review requested" }
-      : { cls: "yellow", text: "🟡 Review requested" };
+      ? { cls: "yellow", text: "🟡 Re-review requested", action: "review" }
+      : { cls: "yellow", text: "🟡 Review requested", action: "review" };
   }
-  if (!my) return { cls: "yellow", text: "🟡 Review requested" };
-  if (my.state === "CHANGES_REQUESTED") return { cls: "review-changes", text: "🟠 Author to fix" };
-  if (my.state === "APPROVED") return { cls: "green", text: "🟢 Author to merge" };
+  if (!my) return { cls: "yellow", text: "🟡 Review requested", action: "review" };
+  if (my.state === "CHANGES_REQUESTED") return { cls: "review-changes", text: "🟠 Author to fix", action: "wait" };
+  if (my.state === "APPROVED") return { cls: "green", text: "🟢 Author to merge", action: "wait" };
   if (my.state === "COMMENTED" && !isReviewInProgress(my)) {
-    return { cls: "yellow", text: "💬 Author to respond" };
+    return { cls: "yellow", text: "💬 Author to respond", action: "wait" };
   }
-  return { cls: "yellow", text: "🟡 Review in progress" };
+  return { cls: "yellow", text: "🟡 Review in progress", action: "review" };
 }
 
 // Bottom-lane priority pick: CI red preempts, otherwise the review chip.
@@ -418,4 +418,128 @@ export function computeStopTime(env = process.env, now = new Date()) {
     return stopDate;
   }
   return new Date(now.getTime() + 4 * 3600_000);
+}
+
+// ── Claude deep links ─────────────────────────────────────────────────────────
+
+// Resolve a GitHub `owner/name` slug to a local clone path.
+// Precedence: explicit repos.json override > Claude Code's own record
+// (see claudeKnownRepoPaths; first path that still exists).
+// Returns { path, source } with source "config" | "claude" | null.
+export function resolveRepoPath(repo, overrides = {}, claudePaths = {}, exists = () => true) {
+  const own = overrides[repo];
+  if (typeof own === "string" && own && exists(own)) return { path: own, source: "config" };
+  const key = Object.keys(claudePaths).find((k) => k.toLowerCase() === repo.toLowerCase());
+  for (const p of claudePaths[key] || []) {
+    if (typeof p === "string" && p && exists(p)) return { path: p, source: "claude" };
+  }
+  return { path: null, source: null };
+}
+
+// GitHub `owner/name` from a git remote URL (ssh or https), lowercased; null otherwise.
+export function slugFromRemoteUrl(url) {
+  const m = String(url || "").trim().match(/github\.com[:/]+([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?$/i);
+  return m ? (m[1] + "/" + m[2]).toLowerCase() : null;
+}
+
+// The `origin` URL from the text of a .git/config file, or null.
+export function originUrlFromGitConfig(text) {
+  let inOrigin = false;
+  for (const line of String(text || "").split("\n")) {
+    const t = line.trim();
+    if (t.startsWith("[")) { inOrigin = /^\[remote\s+"origin"\]$/.test(t); continue; }
+    const m = inOrigin && t.match(/^url\s*=\s*(.+)$/);
+    if (m) return m[1].trim();
+  }
+  return null;
+}
+
+// Every clone Claude Code knows about, as { "owner/name": [paths] }.
+// `githubRepoPaths` in ~/.claude.json is incomplete (sessions from the desktop
+// app don't seem to land there), so also map each folder in `projects` to its
+// GitHub repo via its .git/config. Worktrees are skipped — links should open
+// the main clone. `readGitConfig(path)` returns the text of path/.git/config,
+// or null when .git is missing or isn't a directory.
+export function claudeKnownRepoPaths(claudeConfig, readGitConfig) {
+  const out = {};
+  const add = (slug, p) => {
+    const key = Object.keys(out).find((k) => k.toLowerCase() === slug.toLowerCase()) ?? slug;
+    out[key] = out[key] || [];
+    if (!out[key].includes(p)) out[key].push(p);
+  };
+  for (const [slug, paths] of Object.entries(claudeConfig?.githubRepoPaths ?? {})) {
+    for (const p of paths || []) add(slug, p);
+  }
+  for (const p of Object.keys(claudeConfig?.projects ?? {})) {
+    if (p.includes("/.claude/worktrees/")) continue;
+    const slug = slugFromRemoteUrl(originUrlFromGitConfig(readGitConfig(p)));
+    if (slug) add(slug, p);
+  }
+  return out;
+}
+
+// Prompt pre-filled in the new session: one short sentence that follows the
+// action chip. A failing CI outranks anything but a fix request, since a PR
+// can't merge or move on while red.
+const PROMPT_VERB = {
+  review: "Let's review",
+  fix: "Let's address the review feedback on",
+  merge: "Let's merge",
+  reviewers: "Let's request reviewers for",
+  ci: "Let's fix the failing CI on",
+  wait: "Let's look at",
+};
+export function ctaAction(pr, me) {
+  const action = reviewChip(pr, me).action || "wait";
+  if (pr.role === "author" && pr.ciStatus === "FAILURE" && action !== "fix") return "ci";
+  return action;
+}
+export function claudePrompt(pr, me) {
+  return `${PROMPT_VERB[ctaAction(pr, me)]} PR #${pr.number} (${pr.url}).`;
+}
+
+// The your-turn CTA button: a short verb (what clicking starts) with the
+// status chip's emoji and colour; the full status goes in the tooltip.
+const CTA_LABEL = { fix: "Fix", merge: "Merge", reviewers: "Add reviewers", wait: "Open" };
+export function ctaChip(pr, me) {
+  const rev = reviewChip(pr, me);
+  const action = ctaAction(pr, me);
+  const status = rev.text.replace(/^\S+\s+/, "");
+  if (action === "ci") return { cls: "red", text: "❌ Fix CI", status: "CI failing · " + status, action };
+  const label = action === "review"
+    ? (/Re-review/.test(rev.text) ? "Re-review" : /in progress/.test(rev.text) ? "Finish review" : "Review")
+    : CTA_LABEL[action];
+  return { cls: rev.cls, text: rev.text.split(" ")[0] + " " + label, status, action };
+}
+
+// Deep links for the CLI (claude-cli://) and the desktop app (claude://).
+// CLI: prefer an explicit cwd; otherwise let Claude Code resolve `repo` itself.
+// Desktop: needs an absolute folder, so it's null when the path is unknown.
+export function claudeLinks(pr, localPath, me) {
+  const q = encodeURIComponent(claudePrompt(pr, me));
+  const cli = localPath
+    ? `claude-cli://open?cwd=${encodeURIComponent(localPath)}&q=${q}`
+    : `claude-cli://open?repo=${encodeURIComponent(pr.repo).replace("%2F", "/")}&q=${q}`;
+  const desktop = localPath
+    ? `claude://code/new?folder=${encodeURIComponent(localPath)}&q=${q}`
+    : null;
+  return { cli, desktop };
+}
+
+// Best-guess target when the user hasn't picked one: the desktop app when it's
+// installed, else the terminal when its link handler is registered. `null`
+// means "couldn't check" (non-macOS), which keeps the desktop default.
+export function guessClaudeTarget({ desktop = null, cli = null } = {}) {
+  if (desktop === true) return "desktop";
+  if (cli === true) return "cli";
+  return desktop === false ? "cli" : "desktop";
+}
+
+// Dashboard preferences persisted in $STATE_DIR/config.json. Only known keys
+// and values survive, so a bad POST or hand edit can't inject anything.
+export const CLAUDE_TARGETS = ["desktop", "cli"];
+export function sanitizeConfig(raw) {
+  const out = {};
+  if (raw && CLAUDE_TARGETS.includes(raw.claudeTarget)) out.claudeTarget = raw.claudeTarget;
+  return out;
 }

@@ -202,6 +202,28 @@ a { color: inherit; }
 .pr .num { color: var(--text-muted); font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 .pr .num a { color: inherit; text-decoration: none; }
 .pr .num a:hover { text-decoration: underline; }
+#top-lane .pr a.claude-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px transparent;
+}
+#top-lane .pr a.claude-open .claude-logo { display: inline-flex; color: #d97757; opacity: 0.75; }
+#top-lane .pr a.claude-open:hover { box-shadow: inset 0 0 0 1px rgba(217,119,87,0.6); }
+#top-lane .pr a.claude-open:hover .claude-logo { opacity: 1; }
+#top-lane .pr a.claude-open.unmapped .claude-logo { opacity: 0.35; }
+.claude-target {
+  font: inherit;
+  font-size: 11px;
+  background: none;
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 4px;
+  padding: 1px 6px;
+  cursor: pointer;
+}
+.claude-target:hover { color: #d97757; border-color: rgba(217,119,87,0.5); }
 .pr .title { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pr .title a { color: var(--text); text-decoration: none; }
 .pr .title a:hover { text-decoration: underline; }
@@ -283,6 +305,14 @@ a { color: inherit; }
   background: #ffffff;
   color: #374151;
 }
+/* Status chips (CI, merge, bounces) are information, not actions: plain
+   labels without border or background, so the CTA is the only button. */
+#top-lane .pr .top-card-footer .meta-chips .chip {
+  border: none;
+  background: none;
+  padding: 1px 0;
+  color: #4b5563;
+}
 /* CTA chip — left-aligned, same size as the others; raised with a subtle
    shadow so it reads as the primary signal. Color comes from the existing
    .cls (yellow/red/green/review-changes). */
@@ -339,3 +369,49 @@ a { color: inherit; }
   font-style: italic;
   grid-column: 1 / -1;
 }
+
+#claude-popover {
+  position: absolute;
+  z-index: 10;
+  min-width: 220px;
+  padding: 10px;
+  border-radius: 8px;
+  background: #161b22;
+  border: 1px solid rgba(217,119,87,0.5);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text);
+}
+#claude-popover .pop-title { font-weight: 600; }
+#claude-popover button {
+  font: inherit;
+  text-align: left;
+  padding: 6px 8px;
+  border-radius: 5px;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.04);
+  color: var(--text);
+  cursor: pointer;
+}
+#claude-popover button:hover { border-color: #d97757; color: #d97757; }
+#claude-popover .pop-note { color: var(--text-muted); font-size: 11px; }
+#claude-popover { max-width: 340px; }
+#claude-popover .pop-code {
+  display: block;
+  padding: 6px 8px;
+  border-radius: 5px;
+  background: rgba(0,0,0,0.35);
+  font-size: 11px;
+  word-break: break-all;
+  user-select: all;
+}
+.col-header .unmapped-warn { margin-left: 4px; color: var(--yellow); cursor: help; font-size: 11px; }
+.claude-target, #claude-popover button { display: inline-flex; align-items: center; gap: 6px; }
+.target-icon { flex: 0 0 auto; }
+#top-lane .pr .top-card-header { align-items: flex-start; }
+#top-lane .pr .card-meta { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; flex: 0 0 auto; }
+#top-lane .pr .card-meta-row { display: flex; align-items: center; gap: 6px; }
+#top-lane .pr .card-meta .linear { margin-left: 0; }
