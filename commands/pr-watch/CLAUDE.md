@@ -210,11 +210,12 @@ Emitted immediately before the process exits at stop time.
   "prs": [ ... ],
   "repoPaths": { "acme-corp/platform": { "path": "/Users/me/src/platform", "source": "claude" } },
   "config": { "claudeTarget": "desktop" },
+  "claudeTargets": { "desktop": true, "cli": true, "guess": "desktop" },
   "reposScript": "/Users/me/.claude/pr-watch/repos.mjs"
 }
 ```
 
-`repoPaths` (0.18.0+, optional) maps each repo to its local clone; `source` is `config` (repos.json), `claude` (Claude Code's `githubRepoPaths` in `~/.claude.json`), or `null` with `path: null` when unknown.
+`repoPaths` (0.18.0+, optional) maps each repo to its local clone; `source` is `config` (repos.json), `claude` (folders Claude Code knows from `~/.claude.json`), or `null` with `path: null` when unknown.
 
 The command reads `current.json` on every event to build the display. `state.json` is internal to the poller.
 
@@ -227,9 +228,11 @@ On top-lane (your turn) cards, the action chip ("🟡 Review requested", "🟠 F
 | Desktop | `claude://code/new?folder=<path>&q=<prompt>` | Claude desktop app + a known local path |
 | Terminal | `claude-cli://open?cwd=<path>&q=<prompt>` (or `repo=owner/name` when the path is unknown) | Claude Code CLI; handler registers after the first prompt of any interactive session |
 
-The first click on a chip asks **Claude desktop** or **Terminal**; the answer is saved in `$STATE_DIR/config.json` (via `POST /config`, JSON only, so other sites can't set it) and applies to every browser and restart. The header button (**Claude: ask / desktop / terminal**) switches it later; ⌥-click a chip to use the other target once. Delete `claudeTarget` from `config.json` to be asked again. Without a known path the repo's column header shows ⚠ and the chip's logo is dimmed; clicking it opens a popover with the `repos.mjs --set` command (copy button) and **Open in terminal anyway** (`repo=`, which lands in your home folder if Claude Code has never seen a clone).
+Chips open the best guess without asking: at startup the poller checks which deep-link handlers are installed (macOS: `Claude.app`, `~/Applications/Claude Code URL Handler.app`; Linux: the CLI's `.desktop` file) and ships `claudeTargets: { desktop, cli, guess }` in the payload. Desktop wins when installed, else the terminal. The header button (**Claude: desktop / terminal**) overrides it; the choice is saved in `$STATE_DIR/config.json` (via `POST /config`, JSON only, so other sites can't set it). ⌥-click a chip to use the other target once. Delete `claudeTarget` from `config.json` to go back to the guess.
 
-Paths resolve in this order, re-read on every poll: `repos.json` → Claude Code's `githubRepoPaths` (repos you've run `claude` in) → unknown. Map unknown ones with:
+Not detected: a handler that exists but points to an old or removed `claude` install (e.g. after switching from the standalone installer to npm). Links then fail silently. Fix: `rm -rf ~/Applications/"Claude Code URL Handler.app"`, then send one prompt in an interactive `claude` session to re-register. Without a known path the repo's column header shows ⚠ and the chip's logo is dimmed; clicking it opens a popover with the `repos.mjs --set` command (copy button) and **Open in terminal anyway** (`repo=`, which lands in your home folder if Claude Code has never seen a clone).
+
+Paths resolve in this order, re-read on every poll: `repos.json` → folders Claude Code knows from `~/.claude.json` (`githubRepoPaths`, plus every `projects` folder mapped to its GitHub repo via `.git/config` origin; worktrees skipped) → unknown. Map unknown ones with:
 
 ```bash
 node ~/.claude/pr-watch/repos.mjs            # asks for each unmapped repo

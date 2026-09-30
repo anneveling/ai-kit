@@ -9,7 +9,7 @@
 //   node repos.mjs --set owner/name=/abs/path [--set ...]   non-interactive (used by /pr-watch)
 //
 // Paths are saved to $STATE_DIR/repos.json. Repos that Claude Code has already seen
-// (`githubRepoPaths` in ~/.claude.json) resolve without asking.
+// (folders in ~/.claude.json) resolve without asking.
 
 import { execFileSync } from "child_process";
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from "fs";
@@ -17,7 +17,7 @@ import { homedir } from "os";
 import { dirname, join, resolve } from "path";
 import { fileURLToPath } from "url";
 import { createInterface } from "readline/promises";
-import { resolveRepoPath } from "./lib.mjs";
+import { claudeKnownRepoPaths, resolveRepoPath } from "./lib.mjs";
 
 const STATE_DIR = process.env.STATE_DIR ?? join(homedir(), ".claude", "pr-watch");
 const REPOS_FILE = join(STATE_DIR, "repos.json");
@@ -49,7 +49,10 @@ function checkClone(repo, path) {
 
 const args = process.argv.slice(2);
 const overrides = readJson(REPOS_FILE);
-const claudePaths = readJson(CLAUDE_CONFIG_FILE).githubRepoPaths ?? {};
+function readGitConfig(dir) {
+  try { return readFileSync(join(dir, ".git", "config"), "utf8"); } catch { return null; }
+}
+const claudePaths = claudeKnownRepoPaths(readJson(CLAUDE_CONFIG_FILE), readGitConfig);
 
 function save() {
   mkdirSync(STATE_DIR, { recursive: true });

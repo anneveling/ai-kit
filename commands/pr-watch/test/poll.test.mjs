@@ -5,7 +5,8 @@ import {
   latestMyReview, ballInCourt, bicSince, bouncesCount,
   ageStr, ageMarker, ciChip, mergeChip, reviewChip, priorityChip,
   effectiveReviewDecision, isReviewInProgress,
-  resolveRepoPath, claudePrompt, claudeLinks, sanitizeConfig,
+  resolveRepoPath, claudePrompt, claudeLinks, sanitizeConfig, guessClaudeTarget,
+  slugFromRemoteUrl, originUrlFromGitConfig, claudeKnownRepoPaths,
 } from "../lib.mjs";
 
 // ── buildPayload ──────────────────────────────────────────────────────────────
@@ -1176,4 +1177,44 @@ test("sanitizeConfig: unknown target or garbage means 'not chosen yet'", () => {
   assert.deepEqual(sanitizeConfig({ claudeTarget: "vscode" }), {});
   assert.deepEqual(sanitizeConfig(null), {});
   assert.deepEqual(sanitizeConfig("x"), {});
+});
+
+test("guessClaudeTarget: desktop app wins, then the terminal handler", () => {
+  assert.equal(guessClaudeTarget({ desktop: true, cli: true }), "desktop");
+  assert.equal(guessClaudeTarget({ desktop: false, cli: true }), "cli");
+  assert.equal(guessClaudeTarget({ desktop: null, cli: true }), "cli");
+});
+
+test("guessClaudeTarget: nothing detected keeps desktop unless it's known missing", () => {
+  assert.equal(guessClaudeTarget({ desktop: null, cli: null }), "desktop");
+  assert.equal(guessClaudeTarget(), "desktop");
+  assert.equal(guessClaudeTarget({ desktop: false, cli: false }), "cli");
+});
+
+test("slugFromRemoteUrl: ssh and https GitHub remotes", () => {
+  assert.equal(slugFromRemoteUrl("git@github.com:Bubble-Goods/bubble-catalog.git"), "bubble-goods/bubble-catalog");
+  assert.equal(slugFromRemoteUrl("https://github.com/acme/web"), "acme/web");
+  assert.equal(slugFromRemoteUrl("https://gitlab.com/acme/web.git"), null);
+});
+
+test("originUrlFromGitConfig: reads only remote origin", () => {
+  const cfg = '[core]\n\tbare = false\n[remote "upstream"]\n\turl = git@github.com:x/y.git\n[remote "origin"]\n\turl = git@github.com:acme/web.git\n';
+  assert.equal(originUrlFromGitConfig(cfg), "git@github.com:acme/web.git");
+  assert.equal(originUrlFromGitConfig(null), null);
+});
+
+test("claudeKnownRepoPaths: adds project folders by their origin, skips worktrees", () => {
+  const cfg = {
+    githubRepoPaths: { "acme/web": ["/src/web"] },
+    projects: { "/src/catalog": {}, "/src/catalog/.claude/worktrees/x": {}, "/tmp/notgit": {}, "/src/web": {} },
+  };
+  const read = (p) => ({
+    "/src/catalog": '[remote "origin"]\n\turl = git@github.com:acme/catalog.git\n',
+    "/src/web": '[remote "origin"]\n\turl = https://github.com/acme/web.git\n',
+  }[p] ?? null);
+  assert.deepEqual(claudeKnownRepoPaths(cfg, read), { "acme/web": ["/src/web"], "acme/catalog": ["/src/catalog"] });
+});
+
+test("resolveRepoPath: slug match is case-insensitive", () => {
+  assert.equal(resolveRepoPath("Acme/Web", {}, { "acme/web": ["/src/web"] }).path, "/src/web");
 });

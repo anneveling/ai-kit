@@ -27,7 +27,7 @@ import { createServer } from "http";
 import { homedir } from "os";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
-import { buildPayload, ciSummary, computeEvents, computeStopTime, diffPr, resolveRepoPath, sanitizeConfig } from "./lib.mjs";
+import { buildPayload, ciSummary, computeEvents, computeStopTime, diffPr, claudeKnownRepoPaths, guessClaudeTarget, resolveRepoPath, sanitizeConfig } from "./lib.mjs";
 
 const SCHEMA_VERSION = 1;
 const POLLER_VERSION = "0.18.0";
@@ -203,19 +203,43 @@ function readJson(file) {
   try { return JSON.parse(readFileSync(file, "utf8")); } catch { return {}; }
 }
 
+// Text of <dir>/.git/config, or null (no repo, or a worktree whose .git is a file).
+function readGitConfig(dir) {
+  try { return readFileSync(join(dir, ".git", "config"), "utf8"); } catch { return null; }
+}
+
 // Re-read on every poll so edits to repos.json apply without a restart.
 function resolveRepoPaths(repos) {
   const overrides = readJson(REPOS_FILE);
-  const claudePaths = readJson(CLAUDE_CONFIG_FILE).githubRepoPaths ?? {};
+  const claudePaths = claudeKnownRepoPaths(readJson(CLAUDE_CONFIG_FILE), readGitConfig);
   const out = {};
   for (const repo of repos) out[repo] = resolveRepoPath(repo, overrides, claudePaths, existsSync);
   return out;
 }
 
+// Which Claude deep-link handlers are installed, checked once at startup by
+// looking for their files. `null` = can't tell on this platform.
+function detectClaudeTargets() {
+  const home = homedir();
+  if (process.platform === "darwin") {
+    return {
+      desktop: ["/Applications/Claude.app", join(home, "Applications", "Claude.app")].some((p) => existsSync(p)),
+      cli: existsSync(join(home, "Applications", "Claude Code URL Handler.app")),
+    };
+  }
+  if (process.platform === "linux") {
+    const apps = join(process.env.XDG_DATA_HOME || join(home, ".local", "share"), "applications");
+    return { desktop: null, cli: existsSync(join(apps, "claude-code-url-handler.desktop")) };
+  }
+  return { desktop: null, cli: null };
+}
+const CLAUDE_TARGETS_FOUND = detectClaudeTargets();
+const claudeTargets = { ...CLAUDE_TARGETS_FOUND, guess: guessClaudeTarget(CLAUDE_TARGETS_FOUND) };
+
 function saveCurrent(prs, viewer) {
   const repoPaths = resolveRepoPaths(new Set(prs.map((p) => p.repo)));
   const config = sanitizeConfig(readJson(CONFIG_FILE));
-  const payload = { ...buildPayload(prs, viewer, { schemaVersion: SCHEMA_VERSION, pollerVersion: POLLER_VERSION }), repoPaths, config, reposScript: join(SCRIPT_DIR, "repos.mjs") };
+  const payload = { ...buildPayload(prs, viewer, { schemaVersion: SCHEMA_VERSION, pollerVersion: POLLER_VERSION }), repoPaths, config, claudeTargets, reposScript: join(SCRIPT_DIR, "repos.mjs") };
   writeFileSync(CURRENT_FILE, JSON.stringify(payload, null, 2));
   broadcastDashboard(payload);
   return repoPaths;
@@ -445,6 +469,10 @@ const me = execSync("gh api user --jq '.login'", { encoding: "utf8" }).trim();
 console.error(`PR poller | ${OWNER ? `org=${OWNER}` : "all orgs"} | interval=${POLL_INTERVAL}s | user=${me}`);
 console.error(`State: ${STATE_FILE}  Current: ${CURRENT_FILE}`);
 console.error(`Auto-stop: ${stopLabel}`);
+{
+  const found = (v) => (v === true ? "found" : v === false ? "not found" : "unknown");
+  console.error(`Open in Claude: desktop app ${found(claudeTargets.desktop)}, terminal link handler ${found(claudeTargets.cli)} → chips open ${claudeTargets.guess === "cli" ? "the terminal" : "Claude desktop"} (switch in the dashboard header)`);
+}
 
 startDashboard(me);
 

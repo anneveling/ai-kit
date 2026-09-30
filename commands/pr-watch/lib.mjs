@@ -424,15 +424,58 @@ export function computeStopTime(env = process.env, now = new Date()) {
 
 // Resolve a GitHub `owner/name` slug to a local clone path.
 // Precedence: explicit repos.json override > Claude Code's own record
-// (`githubRepoPaths` in ~/.claude.json, first path that still exists).
+// (see claudeKnownRepoPaths; first path that still exists).
 // Returns { path, source } with source "config" | "claude" | null.
 export function resolveRepoPath(repo, overrides = {}, claudePaths = {}, exists = () => true) {
   const own = overrides[repo];
   if (typeof own === "string" && own && exists(own)) return { path: own, source: "config" };
-  for (const p of claudePaths[repo] || []) {
+  const key = Object.keys(claudePaths).find((k) => k.toLowerCase() === repo.toLowerCase());
+  for (const p of claudePaths[key] || []) {
     if (typeof p === "string" && p && exists(p)) return { path: p, source: "claude" };
   }
   return { path: null, source: null };
+}
+
+// GitHub `owner/name` from a git remote URL (ssh or https), lowercased; null otherwise.
+export function slugFromRemoteUrl(url) {
+  const m = String(url || "").trim().match(/github\.com[:/]+([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?$/i);
+  return m ? (m[1] + "/" + m[2]).toLowerCase() : null;
+}
+
+// The `origin` URL from the text of a .git/config file, or null.
+export function originUrlFromGitConfig(text) {
+  let inOrigin = false;
+  for (const line of String(text || "").split("\n")) {
+    const t = line.trim();
+    if (t.startsWith("[")) { inOrigin = /^\[remote\s+"origin"\]$/.test(t); continue; }
+    const m = inOrigin && t.match(/^url\s*=\s*(.+)$/);
+    if (m) return m[1].trim();
+  }
+  return null;
+}
+
+// Every clone Claude Code knows about, as { "owner/name": [paths] }.
+// `githubRepoPaths` in ~/.claude.json is incomplete (sessions from the desktop
+// app don't seem to land there), so also map each folder in `projects` to its
+// GitHub repo via its .git/config. Worktrees are skipped — links should open
+// the main clone. `readGitConfig(path)` returns the text of path/.git/config,
+// or null when .git is missing or isn't a directory.
+export function claudeKnownRepoPaths(claudeConfig, readGitConfig) {
+  const out = {};
+  const add = (slug, p) => {
+    const key = Object.keys(out).find((k) => k.toLowerCase() === slug.toLowerCase()) ?? slug;
+    out[key] = out[key] || [];
+    if (!out[key].includes(p)) out[key].push(p);
+  };
+  for (const [slug, paths] of Object.entries(claudeConfig?.githubRepoPaths ?? {})) {
+    for (const p of paths || []) add(slug, p);
+  }
+  for (const p of Object.keys(claudeConfig?.projects ?? {})) {
+    if (p.includes("/.claude/worktrees/")) continue;
+    const slug = slugFromRemoteUrl(originUrlFromGitConfig(readGitConfig(p)));
+    if (slug) add(slug, p);
+  }
+  return out;
 }
 
 // Prompt pre-filled in the new session: one short sentence that follows the
@@ -464,6 +507,15 @@ export function claudeLinks(pr, localPath, me) {
     ? `claude://code/new?folder=${encodeURIComponent(localPath)}&q=${q}`
     : null;
   return { cli, desktop };
+}
+
+// Best-guess target when the user hasn't picked one: the desktop app when it's
+// installed, else the terminal when its link handler is registered. `null`
+// means "couldn't check" (non-macOS), which keeps the desktop default.
+export function guessClaudeTarget({ desktop = null, cli = null } = {}) {
+  if (desktop === true) return "desktop";
+  if (cli === true) return "cli";
+  return desktop === false ? "cli" : "desktop";
 }
 
 // Dashboard preferences persisted in $STATE_DIR/config.json. Only known keys

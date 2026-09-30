@@ -63,9 +63,10 @@ function cycleTier(repo) {
 }
 
 // ── Open in Claude ───────────────────────────────────────────────────────────
-// Where the action chips open Claude: "desktop" | "cli" | null (not chosen yet →
-// ask on first click). Stored by the poller in $STATE_DIR/config.json.
-let claudeTarget = null;
+// Where the action chips open Claude: the saved choice ($STATE_DIR/config.json,
+// set with the header button) or else the poller's startup guess.
+let claudeTarget = null;      // saved: "desktop" | "cli" | null
+let detectedTarget = null;    // guess from installed handlers
 
 // Target icons: a warm "shiny" monitor for the desktop app, a plain
 // black-and-white >_ window for the terminal.
@@ -84,7 +85,7 @@ const CLI_ICON =
     "<path d=\"M12 15.5h6\" stroke=\"#e6edf3\" stroke-width=\"1.8\" stroke-linecap=\"round\"/>" +
   "</svg>";
 
-function getClaudeTarget() { return claudeTarget; }
+function getClaudeTarget() { return claudeTarget || detectedTarget || "desktop"; }
 async function setClaudeTarget(t) {
   claudeTarget = t;
   updateClaudeTargetToggle();
@@ -101,12 +102,10 @@ function updateClaudeTargetToggle() {
   const el = document.getElementById("claude-target");
   if (!el) return;
   const t = getClaudeTarget();
-  el.innerHTML = t === "cli" ? CLI_ICON + "<span>Claude: terminal</span>"
-    : t === "desktop" ? DESKTOP_ICON + "<span>Claude: desktop</span>"
-    : "<span>Claude: ask</span>";
-  el.title = t
-    ? "Where the action chips on your-turn cards open Claude. Click to switch. ⌥-click a chip to use the other one."
-    : "You'll be asked where to open Claude the first time you click an action chip.";
+  el.innerHTML = t === "cli" ? CLI_ICON + "<span>Claude: terminal</span>" : DESKTOP_ICON + "<span>Claude: desktop</span>";
+  el.title = "Where the action chips on your-turn cards open Claude" +
+    (claudeTarget ? " (your choice)" : " (best guess from what's installed)") +
+    ". Click to switch. ⌥-click a chip to use the other one.";
 }
 
 // Small popover anchored under a chip. `onAction(button)` handles clicks on
@@ -129,22 +128,6 @@ function showPopover(anchor, html, onAction) {
 function closePopover() {
   const el = document.getElementById("claude-popover");
   if (el) el.remove();
-}
-
-// First click on a chip without a saved preference: ask, save, then open.
-function showClaudeChooser(anchor) {
-  showPopover(anchor,
-    "<div class=\"pop-title\">Open PRs in…</div>" +
-    "<button type=\"button\" data-action=\"desktop\">" + DESKTOP_ICON + "<span>Claude desktop</span></button>" +
-    "<button type=\"button\" data-action=\"cli\">" + CLI_ICON + "<span>Terminal (Claude Code CLI)</span></button>" +
-    "<div class=\"pop-note\">Remembered for next time. Change it with the Claude button in the header.</div>",
-    (b) => {
-      const t = b.dataset.action;
-      const url = t === "desktop" && anchor.dataset.desktop ? anchor.dataset.desktop : anchor.dataset.cli;
-      // Save first: opening a claude:// link cancels in-flight requests, so the
-      // preference would be lost and the header would fall back to "ask".
-      setClaudeTarget(t).finally(() => { window.location.href = url; });
-    });
 }
 
 // Chip for a repo with no known local clone: explain, offer the fix, or open
@@ -177,16 +160,16 @@ let reposScript = null;
 function claudeChip(pr, rev) {
   const local = (repoPaths[pr.repo] && repoPaths[pr.repo].path) || null;
   const links = claudeLinks(pr, local, GITHUB_USER);
-  const target = getClaudeTarget() || "desktop";
+  const target = getClaudeTarget();
   // Desktop needs a local folder; without one, fall back to the CLI, which
   // resolves the repo itself from clones Claude Code has seen.
   const primary = target === "desktop" && links.desktop ? links.desktop : links.cli;
   const alt = primary === links.cli ? links.desktop : links.cli;
   const where = primary === links.desktop ? "Claude desktop" : "a terminal";
   const title = (!local ? "No local clone of " + pr.repo + " — click for how to fix"
-    : (getClaudeTarget() ? "Open in " + where : "Open in Claude (you'll pick desktop or terminal once)") + " (" + local + ")") +
+    : "Open in " + where + " (" + local + ")") +
     "\n" + claudePrompt(pr, GITHUB_USER) +
-    (alt && getClaudeTarget() ? " · ⌥-click for " + (alt === links.desktop ? "desktop" : "terminal") : "");
+    (alt ? " · ⌥-click for " + (alt === links.desktop ? "desktop" : "terminal") : "");
   return "<a class=\"chip chip-cta claude-open " + rev.cls + (local ? "" : " unmapped") + "\" href=\"" + escapeHtml(primary) + "\"" +
     (alt ? " data-alt=\"" + escapeHtml(alt) + "\"" : "") +
     " data-cli=\"" + escapeHtml(links.cli) + "\" data-repo=\"" + escapeHtml(pr.repo) + "\"" +
@@ -213,10 +196,9 @@ function applyPayload(payload) {
   if (payload.pollerVersion) updateVersionLink(payload.pollerVersion);
   repoPaths = payload.repoPaths || {};
   if (payload.reposScript) reposScript = payload.reposScript;
-  if (payload.config) {
-    claudeTarget = payload.config.claudeTarget || null;
-    updateClaudeTargetToggle();
-  }
+  if (payload.claudeTargets) detectedTarget = payload.claudeTargets.guess || null;
+  if (payload.config) claudeTarget = payload.config.claudeTarget || null;
+  updateClaudeTargetToggle();
   if (!GITHUB_USER) {
     document.body.innerHTML = '<pre style="padding:2rem;color:#e6edf3">pr-watch: viewer missing from payload. Is the poller signed in with `gh auth login`?</pre>';
     return;
@@ -450,11 +432,6 @@ document.addEventListener("click", (e) => {
   if (a && a.classList.contains("unmapped")) {
     e.preventDefault();
     showUnmappedPopover(a);
-    return;
-  }
-  if (a && !getClaudeTarget()) {
-    e.preventDefault();
-    showClaudeChooser(a);
     return;
   }
   closePopover();
