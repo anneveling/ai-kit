@@ -486,13 +486,30 @@ const PROMPT_VERB = {
   fix: "Let's address the review feedback on",
   merge: "Let's merge",
   reviewers: "Let's request reviewers for",
-  ci: "Let's fix CI on",
+  ci: "Let's fix the failing CI on",
   wait: "Let's look at",
 };
+export function ctaAction(pr, me) {
+  const action = reviewChip(pr, me).action || "wait";
+  if (pr.role === "author" && pr.ciStatus === "FAILURE" && action !== "fix") return "ci";
+  return action;
+}
 export function claudePrompt(pr, me) {
-  let action = reviewChip(pr, me).action || "wait";
-  if (pr.role === "author" && pr.ciStatus === "FAILURE" && action !== "fix") action = "ci";
-  return `${PROMPT_VERB[action]} PR #${pr.number} (${pr.url}).`;
+  return `${PROMPT_VERB[ctaAction(pr, me)]} PR #${pr.number} (${pr.url}).`;
+}
+
+// The your-turn CTA button: a short verb (what clicking starts) with the
+// status chip's emoji and colour; the full status goes in the tooltip.
+const CTA_LABEL = { fix: "Fix", merge: "Merge", reviewers: "Add reviewers", wait: "Open" };
+export function ctaChip(pr, me) {
+  const rev = reviewChip(pr, me);
+  const action = ctaAction(pr, me);
+  const status = rev.text.replace(/^\S+\s+/, "");
+  if (action === "ci") return { cls: "red", text: "❌ Fix CI", status: "CI failing · " + status, action };
+  const label = action === "review"
+    ? (/Re-review/.test(rev.text) ? "Re-review" : /in progress/.test(rev.text) ? "Finish review" : "Review")
+    : CTA_LABEL[action];
+  return { cls: rev.cls, text: rev.text.split(" ")[0] + " " + label, status, action };
 }
 
 // Deep links for the CLI (claude-cli://) and the desktop app (claude://).

@@ -10,6 +10,8 @@ The action chip on your-turn cards ("🟡 Review requested", "🟠 Fix requested
 - The desktop link needs an absolute folder. The poller resolves each repo's clone from `~/.claude/pr-watch/repos.json`, then from the folders Claude Code knows in `~/.claude.json`: `githubRepoPaths`, plus every `projects` folder matched to its GitHub repo through its `.git/config` origin (worktrees skipped). `githubRepoPaths` alone misses repos you only open from the desktop app, and ships the result as `repoPaths` in `current.json`.
 - New `repos.mjs` checks the mapping and asks for any missing clone paths (validates the folder is a git clone of that repo). The poller prints unmapped repos at startup, the `initialized` event carries `unmappedRepos`, and `/pr-watch` asks for them once.
 - Repos without a known local clone show ⚠ in their column header. Clicking their chip opens a popover with the `repos.mjs --set` command to copy, and **Open in terminal anyway**. The terminal uses `repo=owner/name`, which opens your most recent clone Claude Code knows of, or your home folder if there is none.
+- The action chip says what you do in a word or two, starting with the verb: **Review**, **Re-review**, **Finish review**, **Fix**, **Merge**, **Add reviewers**, and a red **❌ Fix CI** when CI fails on your PR (it used to show "🟡 In review"). The full status moves to the tooltip.
+- The Linear key moves under the avatar and PR number, so the title starts right after the number and cards get shorter.
 - Status chips next to it (CI, merge state, 🏓 bounces) lose their border and background and read as plain labels, so the action chip is the only thing on the card that looks clickable.
 
 ### Fix

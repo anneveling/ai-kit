@@ -1,7 +1,7 @@
 import {
   ballInCourt, bicSince, bouncesCount,
   ageStr, ageMarker,
-  ciChip, mergeChip, reviewChip, priorityChip,
+  ciChip, mergeChip, reviewChip, priorityChip, ctaChip,
   claudeLinks, claudePrompt,
 } from "./lib.mjs";
 
@@ -166,7 +166,7 @@ function claudeChip(pr, rev) {
   const primary = target === "desktop" && links.desktop ? links.desktop : links.cli;
   const alt = primary === links.cli ? links.desktop : links.cli;
   const where = primary === links.desktop ? "Claude desktop" : "a terminal";
-  const title = (!local ? "No local clone of " + pr.repo + " — click for how to fix"
+  const title = rev.status + "\n" + (!local ? "No local clone of " + pr.repo + " — click for how to fix"
     : "Open in " + where + " (" + local + ")") +
     "\n" + claudePrompt(pr, GITHUB_USER) +
     (alt ? " · ⌥-click for " + (alt === links.desktop ? "desktop" : "terminal") : "");
@@ -340,7 +340,7 @@ function renderPr(pr, lane, repoColorValue) {
   if (lane === "top") {
     const ci = ciChip(pr);
     const merge = mergeChip(pr);
-    const rev = reviewChip(pr, GITHUB_USER);
+    const rev = ctaChip(pr, GITHUB_USER);
     const bounces = bouncesCount(pr);
     const bouncesChip = bounces > 0 ? "<span class=\"chip\" title=\"" + bounces + " 'request changes' review" + (bounces === 1 ? "" : "s") + " — this PR has bounced back to the author " + bounces + " time" + (bounces === 1 ? "" : "s") + "\">🏓 " + bounces + "</span>" : "";
     // Layout: CTA on the left (the primary signal), everything else
@@ -371,9 +371,14 @@ function renderPr(pr, lane, repoColorValue) {
     return "<div class=\"pr role-" + pr.role + " " + age.cls + (pr.isDraft ? " draft" : "") + "\" style=\"border-left-color:" + repoColorValue + "\">" +
       changedDot +
       "<div class=\"top-card-header\">" +
-        avatar +
-        "<span class=\"num\"><a href=\"" + escapeHtml(pr.url) + "\" target=\"_blank\" rel=\"noopener\">#" + pr.number + "</a></span>" +
-        linearHtml +
+        // Left column: avatar + number, Linear key underneath, so the title
+        // gets the rest of the width.
+        "<div class=\"card-meta\">" +
+          "<div class=\"card-meta-row\">" + avatar +
+            "<span class=\"num\"><a href=\"" + escapeHtml(pr.url) + "\" target=\"_blank\" rel=\"noopener\">#" + pr.number + "</a></span>" +
+          "</div>" +
+          linearHtml +
+        "</div>" +
         "<span class=\"title\"><a href=\"" + escapeHtml(pr.url) + "\" target=\"_blank\" rel=\"noopener\">" +
           escapeHtml(titleClean) + "</a></span>" +
       "</div>" +

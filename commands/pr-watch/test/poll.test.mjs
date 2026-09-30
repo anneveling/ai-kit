@@ -6,7 +6,7 @@ import {
   ageStr, ageMarker, ciChip, mergeChip, reviewChip, priorityChip,
   effectiveReviewDecision, isReviewInProgress,
   resolveRepoPath, claudePrompt, claudeLinks, sanitizeConfig, guessClaudeTarget,
-  slugFromRemoteUrl, originUrlFromGitConfig, claudeKnownRepoPaths,
+  slugFromRemoteUrl, originUrlFromGitConfig, claudeKnownRepoPaths, ctaChip,
 } from "../lib.mjs";
 
 // ── buildPayload ──────────────────────────────────────────────────────────────
@@ -1150,7 +1150,7 @@ test("claudePrompt: author prompts follow the chip", () => {
 
 test("claudePrompt: failing CI outranks merge/reviewers, but not a fix request", () => {
   const approvedRed = { ...AUTHOR, ciStatus: "FAILURE", latestReviews: [{ login: "bob", state: "APPROVED", submittedAt: "2026-01-01T00:00:00Z" }] };
-  assert.equal(claudePrompt(approvedRed, "me"), "Let's fix CI on PR #805 " + U);
+  assert.equal(claudePrompt(approvedRed, "me"), "Let's fix the failing CI on PR #805 " + U);
   const blockedRed = { ...AUTHOR, ciStatus: "FAILURE", latestReviews: [{ login: "bob", state: "CHANGES_REQUESTED", submittedAt: "2026-01-01T00:00:00Z" }] };
   assert.equal(claudePrompt(blockedRed, "me"), "Let's address the review feedback on PR #805 " + U);
 });
@@ -1217,4 +1217,25 @@ test("claudeKnownRepoPaths: adds project folders by their origin, skips worktree
 
 test("resolveRepoPath: slug match is case-insensitive", () => {
   assert.equal(resolveRepoPath("Acme/Web", {}, { "acme/web": ["/src/web"] }).path, "/src/web");
+});
+
+test("ctaChip: short verb labels keep the status emoji, full status for the tooltip", () => {
+  const R = "2026-01-01T00:00:00Z";
+  assert.deepEqual(
+    (({ text, status }) => ({ text, status }))(ctaChip({ ...PR, reviewRequests: ["me"] }, "me")),
+    { text: "🟡 Review", status: "Review requested" });
+  const reReq = { ...PR, reviewRequests: ["me"], reviews: [{ author: { login: "me" }, state: "COMMENTED", submittedAt: R, body: "x" }] };
+  assert.equal(ctaChip(reReq, "me").text, "🟡 Re-review");
+  const approved = { ...AUTHOR, latestReviews: [{ login: "bob", state: "APPROVED", submittedAt: R }] };
+  assert.equal(ctaChip(approved, "me").text, "🟢 Merge");
+  const blocked = { ...AUTHOR, latestReviews: [{ login: "bob", state: "CHANGES_REQUESTED", submittedAt: R }] };
+  assert.equal(ctaChip(blocked, "me").text, "🟠 Fix");
+  assert.equal(ctaChip({ ...AUTHOR, reviewRequests: [], latestReviews: [] }, "me").text, "⚪ Add reviewers");
+});
+
+test("ctaChip: failing CI on your PR becomes a red Fix CI", () => {
+  const chip = ctaChip({ ...AUTHOR, ciStatus: "FAILURE", reviewRequests: ["bob"] }, "me");
+  assert.equal(chip.text, "❌ Fix CI");
+  assert.equal(chip.cls, "red");
+  assert.match(chip.status, /^CI failing · /);
 });
