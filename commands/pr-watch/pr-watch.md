@@ -1,8 +1,8 @@
-<!-- version: 0.17.4 | source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch -->
+<!-- version: 0.18.0 | source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch -->
 
 ## About this command
 
-Installed version: **0.17.4**  
+Installed version: **0.18.0**  
 Source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch
 
 ### Checking for updates
@@ -21,6 +21,7 @@ curl -fsSL https://raw.githubusercontent.com/anneveling/ai-kit/main/commands/pr-
 curl -fsSL https://raw.githubusercontent.com/anneveling/ai-kit/main/commands/pr-watch/index.html -o ~/.claude/pr-watch/index.html
 curl -fsSL https://raw.githubusercontent.com/anneveling/ai-kit/main/commands/pr-watch/styles.css -o ~/.claude/pr-watch/styles.css
 curl -fsSL https://raw.githubusercontent.com/anneveling/ai-kit/main/commands/pr-watch/app.js -o ~/.claude/pr-watch/app.js
+curl -fsSL https://raw.githubusercontent.com/anneveling/ai-kit/main/commands/pr-watch/repos.mjs -o ~/.claude/pr-watch/repos.mjs
 curl -fsSL https://raw.githubusercontent.com/anneveling/ai-kit/main/commands/pr-watch/pr-watch.md -o ~/.claude/commands/pr-watch.md
 ```
 
@@ -95,6 +96,14 @@ Use 24h local time (HH:MM) for both the current time and the stop time. The stop
 
 Read `~/.claude/pr-watch/current.json` and display the full current state grouped by repo, using the format above. Mention the stop time prominently: "Monitoring until HH:MM (Xh Ym from now)."
 
+If the event's `unmappedRepos` is non-empty, the dashboard's Claude chips can't open those repos in Claude desktop (it falls back to a terminal). Ask the user once, in one message, for the local clone path of each (suggest a likely path if a sibling repo's path in `current.json` → `repoPaths` hints at a folder layout). Save the answers with:
+
+```bash
+node ~/.claude/pr-watch/repos.mjs --set owner/name=/abs/path --set other/repo=/abs/path
+```
+
+If the user skips or doesn't know, drop it — don't ask again this session.
+
 ## On the `warning` event
 
 The poller is approaching its stop time. Show the header (which will already display the ⚠️ since < 10 min remain), then say: "Monitoring stops in ~Nm at HH:MM. Reply **"continue"** or **"2h"** to restart after it stops." Do not re-read or re-display the full PR state — keep it brief.
@@ -122,7 +131,7 @@ Then show the full state and ask what I want to do next.
 ## When I pick a PR to act on
 
 Tell me:
-- The working directory to open a new Claude session in (derived from the repo name in the PR data)
+- The working directory to open a new Claude session in (`repoPaths[repo].path` in `current.json`, else derived from the repo name). Mention that the action chip on the dashboard card (the one with the Claude logo) opens that session directly.
 - The skill to run (`/review-pr N` for reviewing someone else's PR, `/review-comments N` for addressing feedback on my own PR)
 
 Keep running until I say stop or close the session.

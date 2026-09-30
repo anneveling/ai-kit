@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.18.0 (2026-09-30)
+
+### Open a PR in Claude from the dashboard
+
+The action chip on your-turn cards ("🟡 Review requested", "🟠 Fix requested", …) now carries a Claude logo and is a button. One click opens a new Claude Code session in that repo's local clone with a short prompt pre-filled that follows the chip (you still press Enter): "Let's review PR #N (url).", "Let's merge…", "Let's address the review feedback on…", "Let's request reviewers for…", or "Let's fix CI on…" when CI is red. Nothing to install: it uses the deep-link handlers the Claude desktop app (`claude://code/new`) and the Claude Code CLI (`claude-cli://open`) already register.
+
+- The first click asks **Claude desktop** or **Terminal** and remembers the answer in `~/.claude/pr-watch/config.json`, so it survives restarts and applies in every browser. The header button **Claude: desktop / terminal** changes it later; ⌥-click a chip to use the other one once. A monitor icon marks desktop, a `>_` icon the terminal.
+- The desktop link needs an absolute folder. The poller resolves each repo's clone from `~/.claude/pr-watch/repos.json`, then from Claude Code's own record of repos you've run `claude` in (`githubRepoPaths` in `~/.claude.json`), and ships the result as `repoPaths` in `current.json`.
+- New `repos.mjs` checks the mapping and asks for any missing clone paths (validates the folder is a git clone of that repo). The poller prints unmapped repos at startup, the `initialized` event carries `unmappedRepos`, and `/pr-watch` asks for them once.
+- Repos without a known local clone show ⚠ in their column header. Clicking their chip opens a popover with the `repos.mjs --set` command to copy, and **Open in terminal anyway**. The terminal uses `repo=owner/name`, which opens your most recent clone Claude Code knows of, or your home folder if there is none.
+
+### Fix
+
+- A dashboard tab opened before the first poll finished stayed empty ("bad payload" in the console). The saved `current.json` is pretty-printed and was sent as a multi-line SSE message; it's now sent as one line.
+
 ## 0.17.4 (2026-09-16)
 
 ### A single inline comment ended your review

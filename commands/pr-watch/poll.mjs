@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// poll.mjs — version 0.17.4
+// poll.mjs — version 0.18.0
 // source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch
 // Polls GitHub for open PRs you authored or are requested to review.
 // Emits JSON change-event lines to stdout when anything changes.
@@ -27,10 +27,10 @@ import { createServer } from "http";
 import { homedir } from "os";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
-import { buildPayload, ciSummary, computeEvents, computeStopTime, diffPr } from "./lib.mjs";
+import { buildPayload, ciSummary, computeEvents, computeStopTime, diffPr, resolveRepoPath, sanitizeConfig } from "./lib.mjs";
 
 const SCHEMA_VERSION = 1;
-const POLLER_VERSION = "0.17.4";
+const POLLER_VERSION = "0.18.0";
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 
 // ── Preflight ────────────────────────────────────────────────────────────────
@@ -78,6 +78,12 @@ const STATE_DIR = process.env.STATE_DIR ?? join(homedir(), ".claude", "pr-watch"
 mkdirSync(STATE_DIR, { recursive: true });
 const STATE_FILE = join(STATE_DIR, "state.json");
 const CURRENT_FILE = join(STATE_DIR, "current.json");
+// Local clone paths for the "open in Claude" links: { "owner/name": "/abs/path" }.
+// Written by `node repos.mjs` (or by Claude during /pr-watch); hand-editable.
+const REPOS_FILE = join(STATE_DIR, "repos.json");
+const CLAUDE_CONFIG_FILE = join(homedir(), ".claude.json");
+// Dashboard preferences, e.g. { "claudeTarget": "desktop" | "cli" }. Written by the dashboard.
+const CONFIG_FILE = join(STATE_DIR, "config.json");
 
 const STOP_TIME = computeStopTime();
 const stopLabel = STOP_TIME.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -193,10 +199,26 @@ function saveState(state) {
   writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
 }
 
+function readJson(file) {
+  try { return JSON.parse(readFileSync(file, "utf8")); } catch { return {}; }
+}
+
+// Re-read on every poll so edits to repos.json apply without a restart.
+function resolveRepoPaths(repos) {
+  const overrides = readJson(REPOS_FILE);
+  const claudePaths = readJson(CLAUDE_CONFIG_FILE).githubRepoPaths ?? {};
+  const out = {};
+  for (const repo of repos) out[repo] = resolveRepoPath(repo, overrides, claudePaths, existsSync);
+  return out;
+}
+
 function saveCurrent(prs, viewer) {
-  const payload = buildPayload(prs, viewer, { schemaVersion: SCHEMA_VERSION, pollerVersion: POLLER_VERSION });
+  const repoPaths = resolveRepoPaths(new Set(prs.map((p) => p.repo)));
+  const config = sanitizeConfig(readJson(CONFIG_FILE));
+  const payload = { ...buildPayload(prs, viewer, { schemaVersion: SCHEMA_VERSION, pollerVersion: POLLER_VERSION }), repoPaths, config, reposScript: join(SCRIPT_DIR, "repos.mjs") };
   writeFileSync(CURRENT_FILE, JSON.stringify(payload, null, 2));
   broadcastDashboard(payload);
+  return repoPaths;
 }
 
 // ── Dashboard server ─────────────────────────────────────────────────────────
@@ -229,7 +251,8 @@ function startDashboard(viewer) {
   }
 
   try {
-    lastPayloadJson = readFileSync(CURRENT_FILE, "utf8");
+    // current.json is pretty-printed; SSE `data:` must be a single line.
+    lastPayloadJson = JSON.stringify(JSON.parse(readFileSync(CURRENT_FILE, "utf8")));
   } catch { /* no prior payload yet */ }
 
   // Local dashboard — files change between poller restarts as we iterate.
@@ -237,6 +260,27 @@ function startDashboard(viewer) {
   const NO_CACHE = { "Cache-Control": "no-store, max-age=0" };
 
   const server = createServer((req, res) => {
+    // Only JSON POSTs are accepted: browsers preflight cross-origin JSON requests
+    // and we never answer the preflight, so other sites can't change preferences.
+    if (req.method === "POST" && req.url === "/config" && String(req.headers["content-type"]).startsWith("application/json")) {
+      let body = "";
+      req.on("data", (d) => { body += d; if (body.length > 4096) req.destroy(); });
+      req.on("end", () => {
+        try {
+          const next = sanitizeConfig({ ...sanitizeConfig(readJson(CONFIG_FILE)), ...JSON.parse(body) });
+          writeFileSync(CONFIG_FILE, JSON.stringify(next, null, 2) + "\n");
+          // Push to other open tabs too.
+          const payload = JSON.parse(lastPayloadJson);
+          if (payload && typeof payload === "object") broadcastDashboard({ ...payload, config: next });
+          res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify(next));
+        } catch {
+          res.writeHead(400);
+          res.end();
+        }
+      });
+      return;
+    }
     if (req.method !== "GET") { res.writeHead(404); res.end(); return; }
     try {
       if (req.url === "/") {
@@ -373,13 +417,18 @@ async function pollOnce(isFirstRun, me) {
   const { nextState, events } = computeEvents(summaries, enrichedMap, prevState, isFirstRun);
 
   saveState(nextState);
-  saveCurrent(Object.values(nextState), me);
+  const repoPaths = saveCurrent(Object.values(nextState), me);
   for (const event of events) emit(event);
 
   if (isFirstRun) {
     const count = Object.keys(nextState).length;
     console.error(`Initialized: tracking ${count} PRs. Polling every ${POLL_INTERVAL}s. Auto-stop at ${stopLabel}.`);
-    emit({ event: "initialized", ts: ts(), count });
+    const unmappedRepos = Object.keys(repoPaths).filter((r) => !repoPaths[r].path).sort();
+    if (unmappedRepos.length) {
+      console.error(`No local clone known for: ${unmappedRepos.join(", ")}`);
+      console.error(`  "Open in Claude" falls back to the terminal for these. Map them with: node ${join(SCRIPT_DIR, "repos.mjs")}`);
+    }
+    emit({ event: "initialized", ts: ts(), count, unmappedRepos });
   }
 }
 
