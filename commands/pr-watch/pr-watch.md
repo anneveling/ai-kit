@@ -51,8 +51,20 @@ For each PR use this format:
 🫵 [PR #N — title](url)
 Role: author | CI: ✅ | Review: 🔴 CHANGES_REQUESTED
 Waiting: 1d 4h ⚠️
-Next: address reviewer's feedback — /review-comments N in ~/projects/your-repo
+Next: 🟠 Fix — "Let's address the review feedback on PR #N (url)." in ~/projects/your-repo
 ```
+
+**Next action** — use the same action and prompt as the dashboard's action chip, so the chat inbox and the dashboard agree:
+
+| When (your turn) | Next | Prompt to start Claude with |
+|---|---|---|
+| You're requested to review (or re-review) | 🟡 Review | `Let's review PR #N (url).` |
+| Your PR, a reviewer requested changes | 🟠 Fix | `Let's address the review feedback on PR #N (url).` |
+| Your PR, CI failing (and no fix request) | ❌ Fix CI | `Let's fix the failing CI on PR #N (url).` |
+| Your PR, approved | 🟢 Merge | `Let's merge PR #N (url).` |
+| Your PR, no reviewers yet | ⚪ Add reviewers | `Let's request reviewers for PR #N (url).` |
+
+The folder is `repoPaths[repo].path` from `current.json` (fall back to the repo name if it's null). When the ball is in someone else's court, say who you're waiting on instead, e.g. `Next: waiting on maya's review`.
 
 Ball-in-court emoji (first thing on the line, most important signal):
 - 🫵 = your turn (you need to act)
@@ -96,13 +108,13 @@ Use 24h local time (HH:MM) for both the current time and the stop time. The stop
 
 Read `~/.claude/pr-watch/current.json` and display the full current state grouped by repo, using the format above. Mention the stop time prominently: "Monitoring until HH:MM (Xh Ym from now)."
 
-If the event's `unmappedRepos` is non-empty, the dashboard's Claude chips can't open those repos in Claude desktop (it falls back to a terminal). Ask the user once, in one message, for the local clone path of each (suggest a likely path if a sibling repo's path in `current.json` → `repoPaths` hints at a folder layout). Save the answers with:
+If the event's `unmappedRepos` is non-empty, mention it once in one line — don't ask a question. Those repos have no known local clone, so their dashboard chips can only open a terminal. Give the command to map them, filling in a likely path if a sibling repo's path in `current.json` → `repoPaths` hints at a folder layout:
 
 ```bash
-node ~/.claude/pr-watch/repos.mjs --set owner/name=/abs/path --set other/repo=/abs/path
+node ~/.claude/pr-watch/repos.mjs --set owner/name=/abs/path
 ```
 
-If the user skips or doesn't know, drop it — don't ask again this session.
+If the user gives paths, run that command for them. Don't bring it up again this session.
 
 ## On the `warning` event
 
@@ -130,8 +142,9 @@ Then show the full state and ask what I want to do next.
 
 ## When I pick a PR to act on
 
-Tell me:
-- The working directory to open a new Claude session in (`repoPaths[repo].path` in `current.json`, else derived from the repo name). Mention that the action chip on the dashboard card (the one with the Claude logo) opens that session directly.
-- The skill to run (`/review-pr N` for reviewing someone else's PR, `/review-comments N` for addressing feedback on my own PR)
+Don't start the work in this session — it's the inbox. Tell me:
+- The folder to open a new Claude session in (`repoPaths[repo].path` in `current.json`, else derived from the repo name).
+- The prompt to start it with, from the **Next action** table above.
+- That clicking the action chip on the dashboard card (the one with the Claude logo) opens exactly that session with the prompt filled in.
 
 Keep running until I say stop or close the session.

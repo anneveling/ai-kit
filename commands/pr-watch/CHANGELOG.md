@@ -14,6 +14,9 @@ The action chip on your-turn cards ("🟡 Review requested", "🟠 Fix requested
 - The Linear key moves under the avatar and PR number, so the title starts right after the number and cards get shorter.
 - Status chips next to it (CI, merge state, 🏓 bounces) lose their border and background and read as plain labels, so the action chip is the only thing on the card that looks clickable.
 
+- `/pr-watch` suggests the same next action and prompt as the dashboard chip (it used to point at `/review-pr` / `/review-comments`), and mentions unmapped repos once instead of asking for their paths.
+- README: new **Open in Claude** section — what you need installed, what ⚠ means, and fixes when a chip does nothing.
+
 ### Fix
 
 - A dashboard tab opened before the first poll finished stayed empty ("bad payload" in the console). The saved `current.json` is pretty-printed and was sent as a multi-line SSE message; it's now sent as one line.
