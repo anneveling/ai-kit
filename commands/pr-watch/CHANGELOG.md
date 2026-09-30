@@ -10,6 +10,7 @@ The action chip on your-turn cards ("🟡 Review requested", "🟠 Fix requested
 - The desktop link needs an absolute folder. The poller resolves each repo's clone from `~/.claude/pr-watch/repos.json`, then from Claude Code's own record of repos you've run `claude` in (`githubRepoPaths` in `~/.claude.json`), and ships the result as `repoPaths` in `current.json`.
 - New `repos.mjs` checks the mapping and asks for any missing clone paths (validates the folder is a git clone of that repo). The poller prints unmapped repos at startup, the `initialized` event carries `unmappedRepos`, and `/pr-watch` asks for them once.
 - Repos without a known local clone show ⚠ in their column header. Clicking their chip opens a popover with the `repos.mjs --set` command to copy, and **Open in terminal anyway**. The terminal uses `repo=owner/name`, which opens your most recent clone Claude Code knows of, or your home folder if there is none.
+- Status chips next to it (CI, merge state, 🏓 bounces) lose their border and background and read as plain labels, so the action chip is the only thing on the card that looks clickable.
 
 ### Fix
 

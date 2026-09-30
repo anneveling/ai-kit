@@ -305,6 +305,14 @@ a { color: inherit; }
   background: #ffffff;
   color: #374151;
 }
+/* Status chips (CI, merge, bounces) are information, not actions: plain
+   labels without border or background, so the CTA is the only button. */
+#top-lane .pr .top-card-footer .meta-chips .chip {
+  border: none;
+  background: none;
+  padding: 1px 0;
+  color: #4b5563;
+}
 /* CTA chip — left-aligned, same size as the others; raised with a subtle
    shadow so it reads as the primary signal. Color comes from the existing
    .cls (yellow/red/green/review-changes). */
