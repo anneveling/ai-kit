@@ -37,7 +37,7 @@ Both modes auto-stop at 18:00 by default so you never accidentally leave a sessi
 
 ![pr-watch browser dashboard](docs/dashboard.png)
 
-The browser dashboard opens automatically at `http://localhost:7654` when you start pr-watch. **YOUR TURN** (top) shows the PRs that need your action as white cards — each with the author avatar, Linear ticket link, CI status, review state, and age. **WAITING** (bottom) shows the PRs where the ball is in someone else's court as compact dark rows. Columns are grouped by repo. A blue dot marks any PR that changed in the latest poll.
+The browser dashboard opens automatically at `http://localhost:7654` when you start pr-watch. **YOUR TURN** (top) shows the PRs that need your action as white cards: author avatar, PR number and Linear key, title, and a footer with the **action button** (Review, Fix, Merge, …) on the left and plain status labels (CI, merge state, review bounces, age) on the right. **WAITING** (bottom) shows the PRs where the ball is in someone else's court as compact dark rows. Columns are grouped by repo. A blue dot marks any PR that changed in the latest poll.
 
 The action chip on each your-turn card (**Review**, **Fix**, **Merge**, …, with a small Claude logo) opens that PR in Claude — see [Open in Claude](#open-in-claude).
 
@@ -45,7 +45,7 @@ The dashboard updates live via Server-Sent Events — no page refresh needed. It
 
 ## Open in Claude
 
-Click the action chip on a your-turn card and a new Claude Code session opens in your local clone of that repo, with a one-line prompt already typed: `Let's review PR #87 (url).`, `Let's merge…`, `Let's fix the failing CI on…`. Nothing runs until you press Enter.
+Click the action chip on a your-turn card and a new Claude Code session opens in your local clone of that repo, with a one-line prompt already typed: `Let's review PR #87 in acme-corp/mobile-app.`, `Let's merge…`, `Let's fix the failing CI on…`. Nothing runs until you press Enter.
 
 It uses the links the Claude apps already understand — nothing extra to install:
 
@@ -85,7 +85,7 @@ PR inbox — updated 14:23  |  stops 18:00 (3h 37m left)
 🫵 [PR #412 — Add rate limiting to API gateway](https://github.com/acme-corp/platform/pull/412)
 Role: author | CI: ✅ | Review: 🔴 CHANGES_REQUESTED
 Waiting: 2d 1h 🚨
-Next: 🟠 Fix — "Let's address the review feedback on PR #412 (url)." in ~/projects/platform
+Next: 🟠 Fix — "Let's address the review feedback on PR #412 in acme-corp/platform." in ~/projects/platform
 
 ⏳ [PR #438 — Migrate auth service to Postgres](https://github.com/acme-corp/platform/pull/438)
 Role: author | CI: ⏳ | Review: 🟡 REVIEW_REQUIRED
@@ -97,7 +97,7 @@ Next: waiting on CI and a reviewer
 🫵 [PR #87 — Fix crash on empty cart checkout](https://github.com/acme-corp/mobile-app/pull/87)
 Role: reviewer | CI: ✅ | Review: 🟡 REVIEW_REQUIRED
 Waiting: 1d 3h ⚠️
-Next: 🟡 Review — "Let's review PR #87 (url)." in ~/projects/mobile-app
+Next: 🟡 Review — "Let's review PR #87 in acme-corp/mobile-app." in ~/projects/mobile-app
 
 ⏳ [PR #91 — Dark mode follow-up tweaks](https://github.com/acme-corp/mobile-app/pull/91)
 Role: author | CI: ✅ | Review: 🟢 APPROVED
@@ -206,7 +206,11 @@ The files users install are `pr-watch.md`, `poll.mjs`, `lib.mjs`, `index.html`, 
 
 1. Bump the version in `poll.mjs` (line 2 comment and `POLLER_VERSION`), `package.json`, and `pr-watch.md` (line 1 marker and the "Installed version" line).
 2. Add an entry to [CHANGELOG.md](CHANGELOG.md).
-3. Sync to your global install and run tests:
+3. If the dashboard looks different, regenerate the screenshot from the fake PRs in `docs/demo.json`:
+   ```bash
+   node scripts/screenshot.mjs
+   ```
+4. Sync to your global install and run tests:
    ```bash
    ./scripts/sync-global.sh --test
    ```

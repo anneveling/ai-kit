@@ -1133,7 +1133,7 @@ test("resolveRepoPath: unknown repo resolves to null", () => {
 
 const PR = { number: 805, url: "https://github.com/acme/web/pull/805", repo: "acme/web", role: "reviewer" };
 
-const U = "(https://github.com/acme/web/pull/805).";
+const U = "in acme/web.";
 const AUTHOR = { ...PR, role: "author", author: { login: "me" } };
 
 test("claudePrompt: reviewer with a pending request reviews", () => {

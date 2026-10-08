@@ -51,18 +51,18 @@ For each PR use this format:
 🫵 [PR #N — title](url)
 Role: author | CI: ✅ | Review: 🔴 CHANGES_REQUESTED
 Waiting: 1d 4h ⚠️
-Next: 🟠 Fix — "Let's address the review feedback on PR #N (url)." in ~/projects/your-repo
+Next: 🟠 Fix — "Let's address the review feedback on PR #N in owner/name." in ~/projects/your-repo
 ```
 
 **Next action** — use the same action and prompt as the dashboard's action chip, so the chat inbox and the dashboard agree:
 
 | When (your turn) | Next | Prompt to start Claude with |
 |---|---|---|
-| You're requested to review (or re-review) | 🟡 Review | `Let's review PR #N (url).` |
-| Your PR, a reviewer requested changes | 🟠 Fix | `Let's address the review feedback on PR #N (url).` |
-| Your PR, CI failing (and no fix request) | ❌ Fix CI | `Let's fix the failing CI on PR #N (url).` |
-| Your PR, approved | 🟢 Merge | `Let's merge PR #N (url).` |
-| Your PR, no reviewers yet | ⚪ Add reviewers | `Let's request reviewers for PR #N (url).` |
+| You're requested to review (or re-review) | 🟡 Review | `Let's review PR #N in owner/name.` |
+| Your PR, a reviewer requested changes | 🟠 Fix | `Let's address the review feedback on PR #N in owner/name.` |
+| Your PR, CI failing (and no fix request) | ❌ Fix CI | `Let's fix the failing CI on PR #N in owner/name.` |
+| Your PR, approved | 🟢 Merge | `Let's merge PR #N in owner/name.` |
+| Your PR, no reviewers yet | ⚪ Add reviewers | `Let's request reviewers for PR #N in owner/name.` |
 
 The folder is `repoPaths[repo].path` from `current.json` (fall back to the repo name if it's null). When the ball is in someone else's court, say who you're waiting on instead, e.g. `Next: waiting on maya's review`.
 

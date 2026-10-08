@@ -494,8 +494,11 @@ export function ctaAction(pr, me) {
   if (pr.role === "author" && pr.ciStatus === "FAILURE" && action !== "fix") return "ci";
   return action;
 }
+// No URL on purpose: the session title is generated from this prompt, and a URL
+// makes Claude title it after the PR's own title, dropping the number. The
+// repo slug is enough for `gh pr view N -R owner/name`.
 export function claudePrompt(pr, me) {
-  return `${PROMPT_VERB[ctaAction(pr, me)]} PR #${pr.number} (${pr.url}).`;
+  return `${PROMPT_VERB[ctaAction(pr, me)]} PR #${pr.number} in ${pr.repo}.`;
 }
 
 // The your-turn CTA button: a short verb (what clicking starts) with the

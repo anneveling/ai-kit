@@ -253,6 +253,9 @@ function render() {
   document.getElementById("top-lane-label").textContent = "YOUR TURN (" + bic.length + ")";
   const avatar = document.getElementById("viewer-avatar");
   if (GITHUB_USER && avatar.dataset.user !== GITHUB_USER) {
+    // Offline (or blocked): hide it rather than show a broken-image icon.
+    avatar.onerror = () => { avatar.style.visibility = "hidden"; };
+    avatar.onload = () => { avatar.style.visibility = ""; };
     avatar.src = `https://avatars.githubusercontent.com/${GITHUB_USER}?size=40`;
     avatar.alt = GITHUB_USER;
     avatar.title = GITHUB_USER;

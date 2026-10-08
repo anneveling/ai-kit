@@ -1,0 +1,51 @@
+{
+  "_about": "Fake PRs for docs/dashboard.png. Rendered by scripts/screenshot.mjs. Times are hours ago, so ages read the same whenever the screenshot is regenerated. `ghost` is you.",
+  "viewer": "ghost",
+  "repoPaths": {
+    "acme/repo-a": "/Users/you/src/repo-a",
+    "acme/repo-b": null,
+    "acme/repo-c": "/Users/you/src/repo-c"
+  },
+  "prs": [
+    { "repo": "acme/repo-a", "number": 771, "title": "Add distributed tracing for cross-service request flow [AC-1469]",
+      "author": "wren", "reviewRequests": ["ghost"], "ci": "SUCCESS", "merge": "CLEAN", "updated": 20 },
+    { "repo": "acme/repo-a", "number": 770, "title": "Add unit tests for payment webhook handler",
+      "author": "toby", "reviewRequests": ["ghost"], "ci": "SUCCESS", "merge": "CLEAN", "updated": 20,
+      "reviews": [{ "by": "ghost", "state": "COMMENTED", "ago": 30, "body": "Couple of questions inline." }] },
+    { "repo": "acme/repo-a", "number": 762, "title": "License verification document upload endpoint",
+      "author": "ghost", "reviewRequests": ["toby"], "ci": "SUCCESS", "merge": "CLEAN", "updated": 5 },
+    { "repo": "acme/repo-a", "number": 753, "title": "Fix seed script broken since schema init refactor",
+      "author": "ghost", "reviewRequests": ["wren"], "ci": "SUCCESS", "merge": "CLEAN", "updated": 9 },
+    { "repo": "acme/repo-a", "number": 745, "title": "Extract OAuth callback into dedicated router",
+      "author": "toby", "ci": "SUCCESS", "merge": "CLEAN", "updated": 26,
+      "reviews": [{ "by": "ghost", "state": "CHANGES_REQUESTED", "ago": 26, "body": "Needs a test for the error path." }] },
+    { "repo": "acme/repo-a", "number": 732, "title": "Set deployment tag from last merged release instead of HEAD",
+      "author": "toby", "ci": "SUCCESS", "merge": "CLEAN", "updated": 50,
+      "reviews": [{ "by": "ghost", "state": "CHANGES_REQUESTED", "ago": 50, "body": "See comment on the tag lookup." }] },
+
+    { "repo": "acme/repo-b", "number": 19, "title": "feat(assets): product thumbnails — asset table, resize worker and CDN paths",
+      "author": "ghost", "reviewRequests": ["wren"], "ci": "SUCCESS", "merge": "CLEAN", "updated": 3,
+      "reviews": [{ "by": "wren", "state": "CHANGES_REQUESTED", "ago": 28, "body": "Thumbnails should be lazy." }] },
+    { "repo": "acme/repo-b", "number": 20, "title": "feat: workspace + workspace-scoped resource endpoints",
+      "author": "ghost", "reviewRequests": ["toby"], "ci": "PENDING", "merge": "CLEAN", "updated": 2 },
+
+    { "repo": "acme/repo-b", "number": 47, "title": "feat: keyboard shortcuts on command palette [AC-1434]",
+      "author": "wren", "reviewRequests": ["ghost"], "ci": "SUCCESS", "merge": "CLEAN", "updated": 30 },
+    { "repo": "acme/repo-c", "number": 52, "title": "feat(filters): replace free-text date with date picker, format as ISO range [AC-1460]",
+      "author": "ghost", "ci": "SUCCESS", "merge": "BEHIND", "updated": 14, "reviewDecision": "APPROVED",
+      "reviews": [{ "by": "toby", "state": "APPROVED", "ago": 14, "body": "LGTM" }] },
+    { "repo": "acme/repo-c", "number": 50, "title": "fix(billing): rewire Pending Credits + correct overdue balance label [AC-1449]",
+      "author": "ghost", "ci": "SUCCESS", "merge": "CLEAN", "updated": 13, "reviewDecision": "CHANGES_REQUESTED",
+      "reviews": [
+        { "by": "toby", "state": "CHANGES_REQUESTED", "ago": 40, "body": "Label still says Pending." },
+        { "by": "toby", "state": "CHANGES_REQUESTED", "ago": 13, "body": "Close — one more edge case." }
+      ] },
+    { "repo": "acme/repo-c", "number": 57, "title": "feat(billing): rename Net Revenue → Lifetime Revenue, align with overview [AC-1486]",
+      "author": "ghost", "reviewRequests": ["wren"], "ci": "FAILURE", "merge": "CLEAN", "updated": 4 },
+    { "repo": "acme/repo-c", "number": 55, "title": "feat: dashboard metric cards show 30-day sparklines [AC-1454]",
+      "author": "ghost", "ci": "SUCCESS", "merge": "CLEAN", "updated": 0.5 },
+    { "repo": "acme/repo-c", "number": 54, "title": "feat: wire up feature flags on settings page",
+      "author": "wren", "ci": "SUCCESS", "merge": "CLEAN", "updated": 18,
+      "reviews": [{ "by": "ghost", "state": "CHANGES_REQUESTED", "ago": 18, "body": "Flag names should match the backend." }] }
+  ]
+}

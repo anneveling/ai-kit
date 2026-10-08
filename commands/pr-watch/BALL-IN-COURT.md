@@ -140,7 +140,7 @@ For PRs with a valid **author** in the poller’s scope (author + formal reviewe
 |------|---------|
 | **⏳ CI** | Checks in progress (`ciStatus === PENDING`) |
 | **❌ CI** | Checks failed |
-| CTA chip (🟡 In review, 🟠 Fix requested, …) | Human review state from **your** perspective |
+| CTA chip, top lane (🟡 Review, 🟠 Fix, 🟢 Merge, ❌ Fix CI, …) | Your next action, from `ctaChip`; the only clickable chip — opens the PR in Claude. Full review state from **your** perspective is in its tooltip (`reviewChip`) |
 | Merge chip (🔴 Conflict, 🟠 Behind, …) | Branch/merge state |
 
 BIC uses the same underlying fields; chips are display-only and can be read while the card is in either lane.
