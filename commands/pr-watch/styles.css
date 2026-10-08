@@ -415,3 +415,19 @@ a { color: inherit; }
 #top-lane .pr .card-meta { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; flex: 0 0 auto; }
 #top-lane .pr .card-meta-row { display: flex; align-items: center; gap: 6px; }
 #top-lane .pr .card-meta .linear { margin-left: 0; }
+
+/* Colleagues' reviews next to the CTA on reviewer cards. */
+#top-lane .pr .peer-reviews { display: inline-flex; gap: 7px; align-items: center; margin-left: 2px; }
+#top-lane .pr .peer { position: relative; display: inline-flex; cursor: default; }
+#top-lane .pr .peer .avatar,
+#top-lane .pr .peer .avatar-fallback { width: 18px; height: 18px; }
+#top-lane .pr .peer .badge {
+  position: absolute; right: -4px; bottom: -3px;
+  width: 11px; height: 11px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 7px; font-weight: 800; line-height: 1; color: #fff;
+  box-shadow: 0 0 0 1.5px #fff;
+}
+#top-lane .pr .peer.verdict-approved .badge { background: #1a7f37; }
+#top-lane .pr .peer.verdict-changes .badge { background: #d1621a; }
+#top-lane .pr .peer.verdict-commented .badge { background: #6b7280; font-size: 6px; }

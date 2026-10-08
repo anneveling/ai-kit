@@ -501,6 +501,19 @@ export function claudePrompt(pr, me) {
   return `${PROMPT_VERB[ctaAction(pr, me)]} PR #${pr.number} in ${pr.repo}.`;
 }
 
+// Colleagues who already reviewed a PR you're asked to review: everyone in
+// latestReviews except you and the author, oldest first. `verdict` is
+// approved | changes | commented (an inline-comment-only review counts as
+// commented: they've looked).
+const VERDICT = { APPROVED: "approved", CHANGES_REQUESTED: "changes", COMMENTED: "commented" };
+export function otherReviewers(pr, me) {
+  const author = pr.author && pr.author.login;
+  return (pr.latestReviews || [])
+    .filter((r) => r.login && r.login !== me && r.login !== author && VERDICT[r.state])
+    .sort((a, b) => new Date(a.submittedAt || 0) - new Date(b.submittedAt || 0))
+    .map((r) => ({ login: r.login, verdict: VERDICT[r.state], submittedAt: r.submittedAt }));
+}
+
 // The your-turn CTA button: a short verb (what clicking starts) with the
 // status chip's emoji and colour; the full status goes in the tooltip.
 const CTA_LABEL = { fix: "Fix", merge: "Merge", reviewers: "Add reviewers", wait: "Open" };

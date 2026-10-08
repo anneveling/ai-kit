@@ -6,7 +6,7 @@ import {
   ageStr, ageMarker, ciChip, mergeChip, reviewChip, priorityChip,
   effectiveReviewDecision, isReviewInProgress,
   resolveRepoPath, claudePrompt, claudeLinks, sanitizeConfig, guessClaudeTarget,
-  slugFromRemoteUrl, originUrlFromGitConfig, claudeKnownRepoPaths, ctaChip,
+  slugFromRemoteUrl, originUrlFromGitConfig, claudeKnownRepoPaths, ctaChip, otherReviewers,
 } from "../lib.mjs";
 
 // ── buildPayload ──────────────────────────────────────────────────────────────
@@ -1238,4 +1238,19 @@ test("ctaChip: failing CI on your PR becomes a red Fix CI", () => {
   assert.equal(chip.text, "❌ Fix CI");
   assert.equal(chip.cls, "red");
   assert.match(chip.status, /^CI failing · /);
+});
+
+test("otherReviewers: colleagues' verdicts, oldest first, without you or the author", () => {
+  const pr = {
+    author: { login: "wren" },
+    latestReviews: [
+      { login: "maya", state: "COMMENTED", submittedAt: "2026-01-02T00:00:00Z", hasBody: false },
+      { login: "toby", state: "APPROVED", submittedAt: "2026-01-01T00:00:00Z" },
+      { login: "wren", state: "COMMENTED", submittedAt: "2026-01-03T00:00:00Z" },
+      { login: "me", state: "CHANGES_REQUESTED", submittedAt: "2026-01-03T00:00:00Z" },
+      { login: "kai", state: "DISMISSED", submittedAt: "2026-01-03T00:00:00Z" },
+    ],
+  };
+  assert.deepEqual(otherReviewers(pr, "me").map((r) => [r.login, r.verdict]), [["toby", "approved"], ["maya", "commented"]]);
+  assert.deepEqual(otherReviewers({ author: { login: "wren" } }, "me"), []);
 });

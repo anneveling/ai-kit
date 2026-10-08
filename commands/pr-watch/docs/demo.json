@@ -8,7 +8,9 @@
   },
   "prs": [
     { "repo": "acme/repo-a", "number": 771, "title": "Add distributed tracing for cross-service request flow [AC-1469]",
-      "author": "wren", "reviewRequests": ["ghost"], "ci": "SUCCESS", "merge": "CLEAN", "updated": 20 },
+      "author": "wren", "reviewRequests": ["ghost"], "ci": "SUCCESS", "merge": "CLEAN", "updated": 20,
+      "reviews": [{ "by": "toby", "state": "APPROVED", "ago": 6, "body": "LGTM" },
+                  { "by": "maya", "state": "COMMENTED", "ago": 3, "body": "" }] },
     { "repo": "acme/repo-a", "number": 770, "title": "Add unit tests for payment webhook handler",
       "author": "toby", "reviewRequests": ["ghost"], "ci": "SUCCESS", "merge": "CLEAN", "updated": 20,
       "reviews": [{ "by": "ghost", "state": "COMMENTED", "ago": 30, "body": "Couple of questions inline." }] },
@@ -30,7 +32,8 @@
       "author": "ghost", "reviewRequests": ["toby"], "ci": "PENDING", "merge": "CLEAN", "updated": 2 },
 
     { "repo": "acme/repo-b", "number": 47, "title": "feat: keyboard shortcuts on command palette [AC-1434]",
-      "author": "wren", "reviewRequests": ["ghost"], "ci": "SUCCESS", "merge": "CLEAN", "updated": 30 },
+      "author": "wren", "reviewRequests": ["ghost"], "ci": "SUCCESS", "merge": "CLEAN", "updated": 30,
+      "reviews": [{ "by": "toby", "state": "CHANGES_REQUESTED", "ago": 10, "body": "Conflicts with ⌘K in Safari." }] },
     { "repo": "acme/repo-c", "number": 52, "title": "feat(filters): replace free-text date with date picker, format as ISO range [AC-1460]",
       "author": "ghost", "ci": "SUCCESS", "merge": "BEHIND", "updated": 14, "reviewDecision": "APPROVED",
       "reviews": [{ "by": "toby", "state": "APPROVED", "ago": 14, "body": "LGTM" }] },
