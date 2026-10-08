@@ -7,7 +7,7 @@ DEST="${PR_WATCH_HOME:-$HOME/.claude/pr-watch}"
 CMD_DEST="${PR_WATCH_COMMANDS:-$HOME/.claude/commands}"
 
 mkdir -p "$DEST"
-cp "$ROOT/poll.mjs" "$ROOT/lib.mjs" "$ROOT/index.html" "$ROOT/styles.css" "$ROOT/app.js" "$DEST/"
+cp "$ROOT/poll.mjs" "$ROOT/lib.mjs" "$ROOT/index.html" "$ROOT/styles.css" "$ROOT/app.js" "$ROOT/repos.mjs" "$DEST/"
 
 if [[ -f "$ROOT/pr-watch.md" ]]; then
   mkdir -p "$CMD_DEST"

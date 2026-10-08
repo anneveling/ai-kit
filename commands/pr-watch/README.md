@@ -8,7 +8,7 @@ You're in the middle of deep work. Somewhere, a reviewer just left feedback on y
 
 ### With Claude (`/pr-watch`)
 
-Run `/pr-watch` in a Claude Code session. Claude starts the poller as a background Monitor and renders a structured inbox every time something changes: who needs your attention, what the next action is, and which skill to run (`/review-pr`, `/review-comments`). The browser dashboard also opens automatically alongside it.
+Run `/pr-watch` in a Claude Code session. Claude starts the poller as a background Monitor and renders a structured inbox every time something changes: who needs your attention, and what the next action is. The browser dashboard also opens automatically alongside it.
 
 ```
 poll.mjs (Node, no tokens)          Claude
@@ -37,9 +37,41 @@ Both modes auto-stop at 18:00 by default so you never accidentally leave a sessi
 
 ![pr-watch browser dashboard](docs/dashboard.png)
 
-The browser dashboard opens automatically at `http://localhost:7654` when you start pr-watch. **YOUR TURN** (top) shows the PRs that need your action as white cards — each with the author avatar, Linear ticket link, CI status, review state, and age. **WAITING** (bottom) shows the PRs where the ball is in someone else's court as compact dark rows. Columns are grouped by repo. A blue dot marks any PR that changed in the latest poll.
+The browser dashboard opens automatically at `http://localhost:7654` when you start pr-watch. **YOUR TURN** (top) shows the PRs that need your action as white cards: author avatar, PR number and Linear key, title, and a footer with the **action button** (Review, Fix, Merge, …) on the left and plain status labels (CI, merge state, review bounces, age) on the right. On PRs you're asked to review, small avatars next to the button show colleagues who already looked: a green ring means they approved, orange means they requested changes or commented — handy for deciding what can wait. **WAITING** (bottom) shows the PRs where the ball is in someone else's court as compact dark rows. Columns are grouped by repo. A blue dot marks any PR that changed in the latest poll.
+
+The action chip on each your-turn card (**Review**, **Fix**, **Merge**, …, with a small Claude logo) opens that PR in Claude — see [Open in Claude](#open-in-claude).
 
 The dashboard updates live via Server-Sent Events — no page refresh needed. It is purely ambient: run `/pr-watch` in Claude for the full interactive inbox, or start `node poll.mjs` standalone and just watch the browser tab.
+
+## Open in Claude
+
+Click the action chip on a your-turn card and a new Claude Code session opens in your local clone of that repo, with a one-line prompt already typed: `Let's review PR #87 in acme-corp/mobile-app.`, `Let's merge…`, `Let's fix the failing CI on…`. Nothing runs until you press Enter.
+
+It uses the links the Claude apps already understand — nothing extra to install:
+
+| Opens in | Needs |
+|---|---|
+| **Claude desktop** (monitor icon) | The [Claude desktop app](https://claude.ai/download) |
+| **Terminal** (`>_` icon) | Claude Code, and **one** prompt sent in an interactive `claude` session on this machine (that registers the link handler) |
+
+pr-watch picks one for you — the desktop app if it's installed, otherwise the terminal — and prints its guess when it starts. Switch with the **Claude** button top-right; your choice is remembered. ⌥-click a chip to use the other one once.
+
+**Finding your clone.** pr-watch looks for each repo among the folders you've used Claude Code in. A ⚠ next to a repo name means it didn't find one: that repo's chips can only open a terminal, and if Claude Code has never seen a clone either, the session starts in your home folder. Click the chip for the fix, or map it yourself:
+
+```bash
+node ~/.claude/pr-watch/repos.mjs                              # asks for each missing repo
+node ~/.claude/pr-watch/repos.mjs --set acme/web=~/src/web     # or set one directly
+```
+
+### If a chip does nothing
+
+| Symptom | Fix |
+|---|---|
+| Terminal chips do nothing | Run `claude` in your terminal, send any prompt, exit. That registers the handler. |
+| Still nothing, and you've switched how you install Claude Code (e.g. standalone installer → npm) | The handler may still point at the old install. Remove it, then do the step above: `rm -rf ~/Applications/"Claude Code URL Handler.app"` |
+| Terminal opens in the wrong app | Start `claude` once in the terminal you want; links reuse it. |
+| Desktop sometimes opens a scratch session instead of your repo | A known Claude desktop issue ([anthropics/claude-code#98285](https://github.com/anthropics/claude-code/issues/98285)) — click the chip again. |
+| Browser asks "Open Claude Code URL Handler?" / "Open Claude?" | Expected the first time; tick *always allow*. |
 
 ## Example output (Claude inbox)
 
@@ -53,19 +85,19 @@ PR inbox — updated 14:23  |  stops 18:00 (3h 37m left)
 🫵 [PR #412 — Add rate limiting to API gateway](https://github.com/acme-corp/platform/pull/412)
 Role: author | CI: ✅ | Review: 🔴 CHANGES_REQUESTED
 Waiting: 2d 1h 🚨
-Next: address maya's feedback — /review-comments 412 in ~/projects/platform
+Next: 🟠 Fix — "Let's address the review feedback on PR #412 in acme-corp/platform." in ~/projects/platform
 
 ⏳ [PR #438 — Migrate auth service to Postgres](https://github.com/acme-corp/platform/pull/438)
 Role: author | CI: ⏳ | Review: 🟡 REVIEW_REQUIRED
 Waiting: 4h 12m
-Next: waiting for CI and reviewer
+Next: waiting on CI and a reviewer
 
 **── acme-corp/mobile-app ────────────────────**
 
 🫵 [PR #87 — Fix crash on empty cart checkout](https://github.com/acme-corp/mobile-app/pull/87)
 Role: reviewer | CI: ✅ | Review: 🟡 REVIEW_REQUIRED
 Waiting: 1d 3h ⚠️
-Next: review this PR — /review-pr 87 in ~/projects/mobile-app
+Next: 🟡 Review — "Let's review PR #87 in acme-corp/mobile-app." in ~/projects/mobile-app
 
 ⏳ [PR #91 — Dark mode follow-up tweaks](https://github.com/acme-corp/mobile-app/pull/91)
 Role: author | CI: ✅ | Review: 🟢 APPROVED
@@ -168,13 +200,17 @@ node ~/.claude/pr-watch/poll.mjs  # live dashboard at http://localhost:7654
 
 > This section is only relevant if you maintain or fork this repo. If you're just using the command, stop here.
 
-The files users install are `pr-watch.md`, `poll.mjs`, `lib.mjs`, `index.html`, `styles.css`, and `app.js`. `CLAUDE.md`, `README.md`, `package.json`, `CHANGELOG.md`, and the `test/` directory stay in the repo and are never copied to the user's machine.
+The files users install are `pr-watch.md`, `poll.mjs`, `lib.mjs`, `index.html`, `styles.css`, `app.js`, and `repos.mjs`. `CLAUDE.md`, `README.md`, `package.json`, `CHANGELOG.md`, and the `test/` directory stay in the repo and are never copied to the user's machine.
 
 **When you change any of the installed files:**
 
 1. Bump the version in `poll.mjs` (line 2 comment and `POLLER_VERSION`), `package.json`, and `pr-watch.md` (line 1 marker and the "Installed version" line).
 2. Add an entry to [CHANGELOG.md](CHANGELOG.md).
-3. Sync to your global install and run tests:
+3. If the dashboard looks different, regenerate the screenshot from the fake PRs in `docs/demo.json`:
+   ```bash
+   node scripts/screenshot.mjs
+   ```
+4. Sync to your global install and run tests:
    ```bash
    ./scripts/sync-global.sh --test
    ```

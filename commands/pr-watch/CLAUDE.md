@@ -12,9 +12,11 @@ This file is the authoritative reference for installing, configuring, and operat
 | `index.html` | Dashboard HTML shell — copy to `~/.claude/pr-watch/` |
 | `styles.css` | Dashboard stylesheet — copy to `~/.claude/pr-watch/` |
 | `app.js` | Dashboard frontend logic — copy to `~/.claude/pr-watch/` |
+| `repos.mjs` | Maps repos to local clones for the "open in Claude" chips — copy to `~/.claude/pr-watch/` |
 | `BALL-IN-COURT.md` | Human-readable BIC rules, void cases, testing — stays in repo (not copied) |
 | `WORKFLOW-NOTES.md` | Team workflow limits, GitHub model, alternatives — stays in repo (not copied) |
 | `scripts/sync-global.sh` | Sync repo → `~/.claude/pr-watch` and optional `--test` |
+| `scripts/screenshot.mjs` + `docs/demo.json` | Regenerate `docs/dashboard.png` from fake PRs (headless Chrome, offline) — stays in repo |
 
 ## Ball in court
 
@@ -34,7 +36,8 @@ This section applies only when making changes to the source files in this repo.
    All tests must pass. If you add behaviour, add a test for it.
 3. **Bump the version** in all four places — the comment on line 2 of `poll.mjs`, `POLLER_VERSION` in `poll.mjs`, the `version` field in `package.json`, and both the HTML comment on line 1 and the "Installed version" line of `pr-watch.md` (upgrade discovery reads that marker).
 4. **Add a CHANGELOG entry** — document what changed and why in `CHANGELOG.md`.
-5. **Merge the PR** to `main`.
+5. **If the dashboard looks different, regenerate the screenshot:** `node scripts/screenshot.mjs` rewrites `docs/dashboard.png` from the fake PRs in `docs/demo.json` (edit that file to show new states). `--serve` serves the demo without capturing, for a manual look.
+6. **Merge the PR** to `main`.
 
 ### After merging — syncing the global install
 
@@ -53,7 +56,7 @@ To sync and verify the global install:
 
 Or manually:
 ```bash
-cp poll.mjs lib.mjs index.html styles.css app.js ~/.claude/pr-watch/
+cp poll.mjs lib.mjs index.html styles.css app.js repos.mjs ~/.claude/pr-watch/
 ```
 
 ## Checking for updates
@@ -110,7 +113,7 @@ No env vars are required. With `gh` authenticated the poller watches all orgs th
 | `POLL_INTERVAL` | `120` | Seconds between polls |
 | `STOP_AT` | — | Stop at a wall-clock time, e.g. `17:30` (local time) |
 | `HOURS` | — | Stop after N hours, e.g. `4` |
-| `STATE_DIR` | `~/.claude/pr-watch` | Directory for `state.json` and `current.json` |
+| `STATE_DIR` | `~/.claude/pr-watch` | Directory for `state.json`, `current.json`, `config.json` and `repos.json` |
 | `PR_WATCH_PORT` | `7654` | HTTP port for the browser dashboard |
 | `PR_WATCH_NO_DASHBOARD` | — | Set to `1` to disable the dashboard server entirely |
 | `PR_WATCH_NO_OPEN` | — | Set to `1` to start the server without opening the browser |
@@ -133,8 +136,10 @@ The poller writes one JSON object per line to stdout. Every event includes a `st
 Emitted once on first run after the initial poll completes.
 
 ```json
-{ "event": "initialized", "ts": "2024-01-15T14:23:00Z", "count": 4, "stopAt": "2024-01-15T18:00:00Z" }
+{ "event": "initialized", "ts": "2024-01-15T14:23:00Z", "count": 4, "unmappedRepos": ["acme-corp/infra"], "stopAt": "2024-01-15T18:00:00Z" }
 ```
+
+`unmappedRepos` lists repos with open PRs but no known local clone (see [Open in Claude](#open-in-claude)).
 
 ### `new`
 
@@ -193,6 +198,8 @@ Emitted immediately before the process exits at stop time.
 |---|---|
 | `$STATE_DIR/state.json` | Full enriched PR data keyed by URL, used for change detection between polls |
 | `$STATE_DIR/current.json` | Versioned payload with current open PRs — read this to render the inbox |
+| `$STATE_DIR/config.json` | Dashboard preferences: `{ "claudeTarget": "desktop" \| "cli" }`, written by the dashboard via `POST /config` |
+| `$STATE_DIR/repos.json` | `{ "owner/name": "/abs/path" }` local clone overrides, written by `repos.mjs` — hand-editable |
 
 `current.json` has this envelope (schemaVersion is enforced by the dashboard):
 
@@ -202,11 +209,41 @@ Emitted immediately before the process exits at stop time.
   "pollerVersion": "0.10.0",
   "viewer": "your-github-login",
   "generatedAt": "2024-01-15T14:23:00Z",
-  "prs": [ ... ]
+  "prs": [ ... ],
+  "repoPaths": { "acme-corp/platform": { "path": "/Users/me/src/platform", "source": "claude" } },
+  "config": { "claudeTarget": "desktop" },
+  "claudeTargets": { "desktop": true, "cli": true, "guess": "desktop" },
+  "reposScript": "/Users/me/.claude/pr-watch/repos.mjs"
 }
 ```
 
+`repoPaths` (0.18.0+, optional) maps each repo to its local clone; `source` is `config` (repos.json), `claude` (folders Claude Code knows from `~/.claude.json`), or `null` with `path: null` when unknown.
+
 The command reads `current.json` on every event to build the display. `state.json` is internal to the poller.
+
+## Open in Claude
+
+On top-lane (your turn) cards, the action chip is a link with a Claude logo. Its label is the action (`ctaChip` in `lib.mjs`): **Review**, **Re-review**, **Finish review**, **Fix**, **Merge**, **Add reviewers**, or red **❌ Fix CI** (failing CI on your PR outranks everything except a fix request); the full status is in its tooltip. Clicking opens a new Claude Code session in the repo's local clone with a prompt pre-filled (not sent) that matches: "Let's review / address the review feedback on / merge / request reviewers for / fix the failing CI on / look at PR #N in owner/name." No URL in the prompt, so the auto-generated session title keeps the PR number.
+
+| Target | Link | Needs |
+|---|---|---|
+| Desktop | `claude://code/new?folder=<path>&q=<prompt>` | Claude desktop app + a known local path |
+| Terminal | `claude-cli://open?cwd=<path>&q=<prompt>` (or `repo=owner/name` when the path is unknown) | Claude Code CLI; handler registers after the first prompt of any interactive session |
+
+Chips open the best guess without asking: at startup the poller checks which deep-link handlers are installed (macOS: `Claude.app`, `~/Applications/Claude Code URL Handler.app`; Linux: the CLI's `.desktop` file) and ships `claudeTargets: { desktop, cli, guess }` in the payload. Desktop wins when installed, else the terminal. The header button (**Claude: desktop / terminal**) overrides it; the choice is saved in `$STATE_DIR/config.json` (via `POST /config`, JSON only, so other sites can't set it). ⌥-click a chip to use the other target once. Delete `claudeTarget` from `config.json` to go back to the guess.
+
+Not detected: a handler that exists but points to an old or removed `claude` install (e.g. after switching from the standalone installer to npm). Links then fail silently. Fix: `rm -rf ~/Applications/"Claude Code URL Handler.app"`, then send one prompt in an interactive `claude` session to re-register.
+
+Without a known path the repo's column header shows ⚠ and the chip's logo is dimmed; clicking it opens a popover with the `repos.mjs --set` command (copy button) and **Open in terminal anyway** (`repo=`, which lands in your home folder if Claude Code has never seen a clone).
+
+Paths resolve in this order, re-read on every poll: `repos.json` → folders Claude Code knows from `~/.claude.json` (`githubRepoPaths`, plus every `projects` folder mapped to its GitHub repo via `.git/config` origin; worktrees skipped) → unknown. Map unknown ones with:
+
+```bash
+node ~/.claude/pr-watch/repos.mjs            # asks for each unmapped repo
+node ~/.claude/pr-watch/repos.mjs --all      # review/change all
+node ~/.claude/pr-watch/repos.mjs --check    # status only
+node ~/.claude/pr-watch/repos.mjs --set owner/name=/abs/path
+```
 
 ## Restarting after stop
 

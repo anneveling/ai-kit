@@ -5,6 +5,8 @@ import {
   latestMyReview, ballInCourt, bicSince, bouncesCount,
   ageStr, ageMarker, ciChip, mergeChip, reviewChip, priorityChip,
   effectiveReviewDecision, isReviewInProgress,
+  resolveRepoPath, claudePrompt, claudeLinks, sanitizeConfig, guessClaudeTarget,
+  slugFromRemoteUrl, originUrlFromGitConfig, claudeKnownRepoPaths, ctaChip, otherReviewers,
 } from "../lib.mjs";
 
 // ── buildPayload ──────────────────────────────────────────────────────────────
@@ -1104,4 +1106,151 @@ test("reviewChip: reviewer mid-review vs submitted Comment", () => {
   const done = makeReviewPr({ ...base, reviews: [{ author: { login: "alice" }, state: "COMMENTED", body: "notes", submittedAt: "2024-01-12T09:00:00Z" }] });
   assert.ok(reviewChip(mid, ME).text.includes("in progress"));
   assert.ok(reviewChip(done, ME).text.includes("respond"));
+});
+
+// ── Claude deep links ─────────────────────────────────────────────────────────
+
+test("resolveRepoPath: repos.json override wins over Claude Code's record", () => {
+  const r = resolveRepoPath("a/b", { "a/b": "/mine" }, { "a/b": ["/claude"] });
+  assert.deepEqual(r, { path: "/mine", source: "config" });
+});
+
+test("resolveRepoPath: falls back to the first Claude Code path that still exists", () => {
+  const exists = (p) => p === "/second";
+  const r = resolveRepoPath("a/b", {}, { "a/b": ["/gone", "/second"] }, exists);
+  assert.deepEqual(r, { path: "/second", source: "claude" });
+});
+
+test("resolveRepoPath: a stale override falls through to Claude Code's record", () => {
+  const exists = (p) => p !== "/moved";
+  const r = resolveRepoPath("a/b", { "a/b": "/moved" }, { "a/b": ["/claude"] }, exists);
+  assert.deepEqual(r, { path: "/claude", source: "claude" });
+});
+
+test("resolveRepoPath: unknown repo resolves to null", () => {
+  assert.deepEqual(resolveRepoPath("a/b", {}, {}), { path: null, source: null });
+});
+
+const PR = { number: 805, url: "https://github.com/acme/web/pull/805", repo: "acme/web", role: "reviewer" };
+
+const U = "in acme/web.";
+const AUTHOR = { ...PR, role: "author", author: { login: "me" } };
+
+test("claudePrompt: reviewer with a pending request reviews", () => {
+  assert.equal(claudePrompt({ ...PR, reviewRequests: ["me"] }, "me"), "Let's review PR #805 " + U);
+});
+
+test("claudePrompt: author prompts follow the chip", () => {
+  const approved = { ...AUTHOR, latestReviews: [{ login: "bob", state: "APPROVED", submittedAt: "2026-01-01T00:00:00Z" }] };
+  assert.equal(claudePrompt(approved, "me"), "Let's merge PR #805 " + U);
+  const blocked = { ...AUTHOR, latestReviews: [{ login: "bob", state: "CHANGES_REQUESTED", submittedAt: "2026-01-01T00:00:00Z" }] };
+  assert.equal(claudePrompt(blocked, "me"), "Let's address the review feedback on PR #805 " + U);
+  assert.equal(claudePrompt({ ...AUTHOR, reviewRequests: [], latestReviews: [] }, "me"), "Let's request reviewers for PR #805 " + U);
+});
+
+test("claudePrompt: failing CI outranks merge/reviewers, but not a fix request", () => {
+  const approvedRed = { ...AUTHOR, ciStatus: "FAILURE", latestReviews: [{ login: "bob", state: "APPROVED", submittedAt: "2026-01-01T00:00:00Z" }] };
+  assert.equal(claudePrompt(approvedRed, "me"), "Let's fix the failing CI on PR #805 " + U);
+  const blockedRed = { ...AUTHOR, ciStatus: "FAILURE", latestReviews: [{ login: "bob", state: "CHANGES_REQUESTED", submittedAt: "2026-01-01T00:00:00Z" }] };
+  assert.equal(claudePrompt(blockedRed, "me"), "Let's address the review feedback on PR #805 " + U);
+});
+
+test("claudeLinks: with a local path, both links carry the encoded folder and prompt", () => {
+  const { cli, desktop } = claudeLinks(PR, "/Users/me/my repo", "me");
+  const q = encodeURIComponent(claudePrompt(PR, "me"));
+  assert.equal(cli, "claude-cli://open?cwd=%2FUsers%2Fme%2Fmy%20repo&q=" + q);
+  assert.equal(desktop, "claude://code/new?folder=%2FUsers%2Fme%2Fmy%20repo&q=" + q);
+});
+
+test("claudeLinks: without a local path, CLI uses repo= and desktop is unavailable", () => {
+  const { cli, desktop } = claudeLinks(PR, null, "me");
+  assert.match(cli, /^claude-cli:\/\/open\?repo=acme\/web&q=/);
+  assert.equal(desktop, null);
+});
+
+test("sanitizeConfig: keeps a valid claudeTarget, drops everything else", () => {
+  assert.deepEqual(sanitizeConfig({ claudeTarget: "cli", evil: "<script>" }), { claudeTarget: "cli" });
+  assert.deepEqual(sanitizeConfig({ claudeTarget: "desktop" }), { claudeTarget: "desktop" });
+});
+
+test("sanitizeConfig: unknown target or garbage means 'not chosen yet'", () => {
+  assert.deepEqual(sanitizeConfig({ claudeTarget: "vscode" }), {});
+  assert.deepEqual(sanitizeConfig(null), {});
+  assert.deepEqual(sanitizeConfig("x"), {});
+});
+
+test("guessClaudeTarget: desktop app wins, then the terminal handler", () => {
+  assert.equal(guessClaudeTarget({ desktop: true, cli: true }), "desktop");
+  assert.equal(guessClaudeTarget({ desktop: false, cli: true }), "cli");
+  assert.equal(guessClaudeTarget({ desktop: null, cli: true }), "cli");
+});
+
+test("guessClaudeTarget: nothing detected keeps desktop unless it's known missing", () => {
+  assert.equal(guessClaudeTarget({ desktop: null, cli: null }), "desktop");
+  assert.equal(guessClaudeTarget(), "desktop");
+  assert.equal(guessClaudeTarget({ desktop: false, cli: false }), "cli");
+});
+
+test("slugFromRemoteUrl: ssh and https GitHub remotes", () => {
+  assert.equal(slugFromRemoteUrl("git@github.com:Bubble-Goods/bubble-catalog.git"), "bubble-goods/bubble-catalog");
+  assert.equal(slugFromRemoteUrl("https://github.com/acme/web"), "acme/web");
+  assert.equal(slugFromRemoteUrl("https://gitlab.com/acme/web.git"), null);
+});
+
+test("originUrlFromGitConfig: reads only remote origin", () => {
+  const cfg = '[core]\n\tbare = false\n[remote "upstream"]\n\turl = git@github.com:x/y.git\n[remote "origin"]\n\turl = git@github.com:acme/web.git\n';
+  assert.equal(originUrlFromGitConfig(cfg), "git@github.com:acme/web.git");
+  assert.equal(originUrlFromGitConfig(null), null);
+});
+
+test("claudeKnownRepoPaths: adds project folders by their origin, skips worktrees", () => {
+  const cfg = {
+    githubRepoPaths: { "acme/web": ["/src/web"] },
+    projects: { "/src/catalog": {}, "/src/catalog/.claude/worktrees/x": {}, "/tmp/notgit": {}, "/src/web": {} },
+  };
+  const read = (p) => ({
+    "/src/catalog": '[remote "origin"]\n\turl = git@github.com:acme/catalog.git\n',
+    "/src/web": '[remote "origin"]\n\turl = https://github.com/acme/web.git\n',
+  }[p] ?? null);
+  assert.deepEqual(claudeKnownRepoPaths(cfg, read), { "acme/web": ["/src/web"], "acme/catalog": ["/src/catalog"] });
+});
+
+test("resolveRepoPath: slug match is case-insensitive", () => {
+  assert.equal(resolveRepoPath("Acme/Web", {}, { "acme/web": ["/src/web"] }).path, "/src/web");
+});
+
+test("ctaChip: short verb labels keep the status emoji, full status for the tooltip", () => {
+  const R = "2026-01-01T00:00:00Z";
+  assert.deepEqual(
+    (({ text, status }) => ({ text, status }))(ctaChip({ ...PR, reviewRequests: ["me"] }, "me")),
+    { text: "🟡 Review", status: "Review requested" });
+  const reReq = { ...PR, reviewRequests: ["me"], reviews: [{ author: { login: "me" }, state: "COMMENTED", submittedAt: R, body: "x" }] };
+  assert.equal(ctaChip(reReq, "me").text, "🟡 Re-review");
+  const approved = { ...AUTHOR, latestReviews: [{ login: "bob", state: "APPROVED", submittedAt: R }] };
+  assert.equal(ctaChip(approved, "me").text, "🟢 Merge");
+  const blocked = { ...AUTHOR, latestReviews: [{ login: "bob", state: "CHANGES_REQUESTED", submittedAt: R }] };
+  assert.equal(ctaChip(blocked, "me").text, "🟠 Fix");
+  assert.equal(ctaChip({ ...AUTHOR, reviewRequests: [], latestReviews: [] }, "me").text, "⚪ Add reviewers");
+});
+
+test("ctaChip: failing CI on your PR becomes a red Fix CI", () => {
+  const chip = ctaChip({ ...AUTHOR, ciStatus: "FAILURE", reviewRequests: ["bob"] }, "me");
+  assert.equal(chip.text, "❌ Fix CI");
+  assert.equal(chip.cls, "red");
+  assert.match(chip.status, /^CI failing · /);
+});
+
+test("otherReviewers: colleagues' verdicts, oldest first, without you or the author", () => {
+  const pr = {
+    author: { login: "wren" },
+    latestReviews: [
+      { login: "maya", state: "COMMENTED", submittedAt: "2026-01-02T00:00:00Z", hasBody: false },
+      { login: "toby", state: "APPROVED", submittedAt: "2026-01-01T00:00:00Z" },
+      { login: "wren", state: "COMMENTED", submittedAt: "2026-01-03T00:00:00Z" },
+      { login: "me", state: "CHANGES_REQUESTED", submittedAt: "2026-01-03T00:00:00Z" },
+      { login: "kai", state: "DISMISSED", submittedAt: "2026-01-03T00:00:00Z" },
+    ],
+  };
+  assert.deepEqual(otherReviewers(pr, "me").map((r) => [r.login, r.verdict]), [["toby", "approved"], ["maya", "commented"]]);
+  assert.deepEqual(otherReviewers({ author: { login: "wren" } }, "me"), []);
 });
