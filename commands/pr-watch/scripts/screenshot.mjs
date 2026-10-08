@@ -70,6 +70,52 @@ const payload = {
   reposScript: "~/.claude/pr-watch/repos.mjs",
 };
 
+// Fake people get drawn avatars: a line face on their own colour, with a
+// different hairstyle each. The served app.js points avatar URLs here instead
+// of GitHub (the real dashboard is untouched).
+const PEOPLE = {
+  ghost: { bg: "#5b8def", hair: "short", glasses: false },
+  wren:  { bg: "#a86fe0", hair: "bun",   glasses: false },
+  toby:  { bg: "#d9536f", hair: "none",  glasses: true },
+  maya:  { bg: "#2b8fa8", hair: "long",  glasses: false },
+};
+// No greens or oranges: those are the review-verdict ring colours.
+const FALLBACK_BG = ["#5b8def", "#a86fe0", "#d9536f", "#2b8fa8", "#7a6ff0"];
+function avatarSvg(login) {
+  const p = PEOPLE[login] ?? {
+    bg: FALLBACK_BG[[...login].reduce((h, c) => h + c.charCodeAt(0), 0) % FALLBACK_BG.length],
+    hair: "short", glasses: false,
+  };
+  const ink = 'fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"';
+  const hair = {
+    none: "",
+    short: `<path ${ink} d="M19 25c1-8 6-12 13-12s12 4 13 12"/>`,
+    bun: `<path ${ink} d="M19 25c1-8 6-12 13-12s12 4 13 12"/><circle ${ink} cx="32" cy="9" r="4"/>`,
+    long: `<path ${ink} d="M19 33c-2-14 4-21 13-21s15 7 13 21"/>`,
+  }[p.hair];
+  const eyes = p.glasses
+    ? `<circle ${ink} cx="26" cy="30" r="4"/><circle ${ink} cx="38" cy="30" r="4"/><path ${ink} d="M30 30h4"/>`
+    : `<circle fill="#fff" cx="26.5" cy="30" r="2.6"/><circle fill="#fff" cx="37.5" cy="30" r="2.6"/>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">` +
+    `<circle cx="32" cy="32" r="32" fill="${p.bg}"/>` +
+    `<circle ${ink} cx="32" cy="31" r="13"/>${hair}${eyes}` +
+    `<path ${ink} d="M27 37c3 3 7 3 10 0"/>` +
+    `<path ${ink} d="M14 60c2-9 9-14 18-14s16 5 18 14"/></svg>`;
+}
+const AVATAR_SWAPS = [
+  ['"https://github.com/" + encodeURIComponent(login) + ".png?size=32"', '"/avatar/" + encodeURIComponent(login)'],
+  ["`https://avatars.githubusercontent.com/${GITHUB_USER}?size=40`", '"/avatar/" + encodeURIComponent(GITHUB_USER)'],
+];
+function demoAppJs() {
+  let js = readFileSync(join(ROOT, "app.js"), "utf8");
+  for (const [from, to] of AVATAR_SWAPS) {
+    if (!js.includes(from)) throw new Error(`screenshot.mjs: avatar URL changed in app.js, update AVATAR_SWAPS: ${from}`);
+    js = js.replace(from, to);
+  }
+  return js;
+}
+demoAppJs(); // fail fast, before starting Chrome
+
 const FILES = {
   "/": ["index.html", "text/html"],
   "/styles.css": ["styles.css", "text/css"],
@@ -82,6 +128,16 @@ const server = createServer((req, res) => {
     // One message, then close with a long retry: an open stream would keep
     // headless Chrome from ever finishing the page load.
     res.end(`retry: 3600000\ndata: ${JSON.stringify(payload)}\n\n`);
+    return;
+  }
+  if (req.url.startsWith("/avatar/")) {
+    res.writeHead(200, { "Content-Type": "image/svg+xml" });
+    res.end(avatarSvg(decodeURIComponent(req.url.slice("/avatar/".length))));
+    return;
+  }
+  if (req.url === "/app.js") {
+    res.writeHead(200, { "Content-Type": "text/javascript; charset=utf-8" });
+    res.end(demoAppJs());
     return;
   }
   const f = FILES[req.url];
@@ -114,7 +170,7 @@ server.listen(0, "127.0.0.1", () => {
       `--user-data-dir=${profile}`,
       "--window-size=1440,900", "--force-device-scale-factor=2",
       "--virtual-time-budget=4000",
-      // Offline and deterministic: avatars fall back to their initials.
+      // Offline and deterministic: nothing may reach GitHub.
       "--host-resolver-rules=MAP github.com ~NOTFOUND, MAP avatars.githubusercontent.com ~NOTFOUND",
       `--screenshot=${OUT}`, url,
     ], { stdio: ["ignore", "ignore", "pipe"] });

@@ -142,7 +142,7 @@ For PRs with a valid **author** in the poller’s scope (author + formal reviewe
 | **❌ CI** | Checks failed |
 | CTA chip, top lane (🟡 Review, 🟠 Fix, 🟢 Merge, ❌ Fix CI, …) | Your next action, from `ctaChip`; the only clickable chip — opens the PR in Claude. Full review state from **your** perspective is in its tooltip (`reviewChip`) |
 | Merge chip (🔴 Conflict, 🟠 Behind, …) | Branch/merge state |
-| Colleague avatars next to the CTA (✓ / ✗ / 💬) | On cards where you're the reviewer: others who already approved, requested changes or commented (`otherReviewers`). Display-only — doesn't change BIC |
+| Colleague avatars next to the CTA (green / orange ring) | On cards where you're the reviewer: others who already reviewed (`otherReviewers`) — green ring = approved, orange = changes requested or comments; tooltip has who and when. Display-only — doesn't change BIC |
 
 BIC uses the same underlying fields; chips are display-only and can be read while the card is in either lane.
 

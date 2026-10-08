@@ -43,22 +43,18 @@ function repoLabel(slug) { return slug.split("/").pop(); }
 function avatarUrl(login) {
   return "https://github.com/" + encodeURIComponent(login) + ".png?size=32";
 }
-// Colleagues who already reviewed, as small avatars with a verdict badge,
-// shown next to the CTA on cards where you're the reviewer.
-const VERDICT_BADGE = {
-  approved: { sym: "✓", word: "approved" },
-  changes: { sym: "✗", word: "requested changes" },
-  commented: { sym: "💬", word: "commented" },
-};
+// Colleagues who already reviewed, as small avatars next to the CTA on cards
+// where you're the reviewer. Ring colour: green = approved, orange = anything
+// else (changes requested, comments); details in the tooltip.
+const VERDICT_WORD = { approved: "approved", changes: "requested changes", commented: "commented" };
 function reviewersHtml(pr) {
   const list = otherReviewers(pr, GITHUB_USER);
   if (list.length === 0) return "";
   return "<span class=\"peer-reviews\">" + list.map((r) => {
-    const b = VERDICT_BADGE[r.verdict];
-    const title = r.login + " " + b.word + (r.submittedAt ? " · " + ageStr(r.submittedAt) + " ago" : "");
-    return "<span class=\"peer verdict-" + r.verdict + "\" title=\"" + escapeHtml(title) + "\">" +
+    const title = r.login + " " + VERDICT_WORD[r.verdict] + (r.submittedAt ? " · " + ageStr(r.submittedAt) + " ago" : "");
+    return "<span class=\"peer " + (r.verdict === "approved" ? "peer-approved" : "peer-other") + "\" title=\"" + escapeHtml(title) + "\">" +
       "<img class=\"avatar\" src=\"" + avatarUrl(r.login) + "\" alt=\"@" + escapeHtml(r.login) + "\" loading=\"lazy\" referrerpolicy=\"no-referrer\" onerror=\"this.replaceWith(Object.assign(document.createElement('span'),{className:'avatar-fallback',textContent:'" + escapeHtml(loginInitial(r.login)) + "'}))\">" +
-      "<span class=\"badge\">" + b.sym + "</span></span>";
+      "</span>";
   }).join("") + "</span>";
 }
 
