@@ -1,6 +1,7 @@
 import { describe, expect, mock, test } from 'claude-code/testing'
 
 import { freshStats, isTestCommand, parseReply, prMoment, robotMoodFor, skyFor } from '../hooks/brain'
+import { deckSvg, wrap } from '../hooks/svg'
 
 const BAND = {
   plugin: 'space-mod',
@@ -90,4 +91,36 @@ test('/band tone sets how they talk', async ($, on) => {
   mock.store(on)
   const ran = await $.command.run({ command: 'band', args: 'tone overly dramatic' } as Parameters<typeof $.command.run>[0])
   expect(JSON.stringify(ran)).toContain('overly dramatic')
+})
+
+describe('balloons', () => {
+  test('wrap onto two lines, then an ellipsis', async () => {
+    expect(wrap('one command failed. pretending it did not', 22)).toEqual(['one command failed.', 'pretending it did not'])
+    expect(wrap('short one', 22)).toEqual(['short one'])
+    const long = wrap('this line just keeps going and going and going on', 16)
+    expect(long).toHaveLength(2)
+    expect(long[1]?.endsWith('…')).toBe(true)
+  })
+
+  test('stay in their own half when both speak', async () => {
+    const now = Date.now()
+    const line = (id: number, text: string) => ({ id, text, isMumble: false, isReply: false, at: now })
+    const scene = {
+      robot: { mood: 'content' as const, line: line(2, 'one command failed. pretending it did not happen at all') },
+      human: { mood: 'neutral' as const, line: line(1, 'make it bigger, and the text easier to read please') },
+      sky: 'calm' as const,
+      isNight: false,
+      score: 0,
+      beat: null,
+      isOff: false,
+      isWorking: false,
+    }
+    const { source } = deckSvg(scene, now, 100)
+    const W = Number(source.match(/viewBox="0 0 (\d+)/)?.[1])
+    const boxes = [...source.matchAll(/<rect x="([\d.]+)" y="3.5" width="([\d.]+)"/g)].map(m => [Number(m[1]), Number(m[1]) + Number(m[2])])
+    expect(boxes).toHaveLength(2)
+    const [robot, human] = boxes.sort((a, b) => a[0]! - b[0]!)
+    expect(robot![1]!).toBeLessThanOrEqual(W / 2)
+    expect(human![0]!).toBeGreaterThanOrEqual(W / 2)
+  })
 })

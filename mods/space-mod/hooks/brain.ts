@@ -131,7 +131,7 @@ export type Reply = {
 const line = (v: unknown) => {
   if (typeof v !== 'string') return null
   const t = v.trim().replace(/^["']|["']$/g, '')
-  return t.length === 0 ? null : clip(t, 60)
+  return t.length === 0 ? null : clip(t, 44)
 }
 
 /** Reads the model's answer: a JSON object, possibly wrapped in a fence. */

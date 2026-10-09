@@ -79,24 +79,54 @@ const during = (from: number, until: number, body: string) => {
 
 const textWidth = (chars: number, size: number) => chars * size * 0.6
 
-const balloon = (text: string, isMumble: boolean, x0: number, w: number, tail: number, side: 'left' | 'right') => {
-  const size = 2.2
-  const room = Math.max(6, Math.floor((w - 2) / (size * 0.6)))
-  const body = (isMumble ? `∘ ${text}` : text).slice(0, room)
-  const bw = textWidth(body.length, size) + 2
-  const x = side === 'left' ? x0 : x0 - bw
+/** Words onto at most two lines of `max` characters; an ellipsis if it still doesn't fit. */
+export const wrap = (text: string, max: number, lines = 2) => {
+  const out: string[] = []
+  let line = ''
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    const next = line ? `${line} ${word}` : word
+    if (next.length <= max) line = next
+    else {
+      if (line) out.push(line)
+      line = word.length > max ? word.slice(0, max) : word
+    }
+  }
+  if (line) out.push(line)
+  if (out.length <= lines) return out
+  const kept = out.slice(0, lines)
+  const last = kept[lines - 1] ?? ''
+  kept[lines - 1] = (last.length < max ? last : last.slice(0, max - 1)) + '…'
+  return kept
+}
+
+/**
+ * A balloon inside its own lane (`lane0`..`lane1`), hugging its speaker:
+ * the robot's grows right from its left edge, the human's left from its
+ * right edge, so the two never meet.
+ */
+const balloon = (text: string, isMumble: boolean, lane0: number, lane1: number, tail: number, side: 'left' | 'right') => {
+  const size = 2
+  const lead = 2.5
+  const max = Math.max(6, Math.floor((lane1 - lane0 - 2) / (size * 0.6)))
+  const lines = wrap(isMumble ? `∘ ${text}` : text, max)
+  const longest = Math.max(...lines.map(l => l.length))
+  const bw = textWidth(longest, size) + 2
+  const bh = lines.length * lead + 1
+  const x = side === 'left' ? lane0 : lane1 - bw
   const y = TOP + 0.5
   const fill = isMumble ? '#1A1A1A' : C.white
   const ink = isMumble ? C.lgray : C.black
-  const tailPx =
-    isMumble
-      ? `<rect x="${tail}" y="${TOP + 4}" width="1" height="1" fill="${C.lgray}"/>`
-      : `<rect x="${tail}" y="${TOP + 4}" width="1" height="1" fill="${fill}"/><rect x="${tail + (side === 'left' ? 1 : -1)}" y="${TOP + 5}" width="1" height="1" fill="${fill}"/>`
-  return (
-    `<rect x="${n(x)}" y="${y}" width="${n(bw)}" height="3" fill="${fill}"/>` +
-    tailPx +
-    `<text x="${n(x + 1)}" y="${y + 2.25}" font-size="${size}" ${FONT} fill="${ink}" textLength="${n(bw - 2)}" lengthAdjust="spacingAndGlyphs">${escape(body)}</text>`
-  )
+  const tailY = Math.ceil(y + bh)
+  const tailPx = isMumble
+    ? `<rect x="${tail}" y="${tailY}" width="1" height="1" fill="${C.lgray}"/>`
+    : `<rect x="${tail}" y="${tailY}" width="1" height="1" fill="${fill}"/><rect x="${tail + (side === 'left' ? 1 : -1)}" y="${tailY + 1}" width="1" height="1" fill="${fill}"/>`
+  const texts = lines
+    .map(
+      (l, i) =>
+        `<text x="${n(x + 1)}" y="${n(y + 0.5 + size + i * lead)}" font-size="${size}" ${FONT} fill="${ink}" textLength="${n(textWidth(l.length, size))}" lengthAdjust="spacingAndGlyphs">${escape(l)}</text>`,
+    )
+    .join('')
+  return `<rect x="${n(x)}" y="${y}" width="${n(bw)}" height="${n(bh)}" fill="${fill}"/>` + tailPx + texts
 }
 
 export const deckSvg = (p: DeskScene, now: number, bodyColumns: number) => {
@@ -221,18 +251,18 @@ export const deckSvg = (p: DeskScene, now: number, bodyColumns: number) => {
   )
 
   // Balloons, each for its last few seconds.
-  const half = W / 2 - 3
+  const mid = W / 2
   const said: string[] = []
   const h = p.human.line
   if (h && age(h.at) < LINE_S) {
     said.push(h.text)
-    out.push(during(0, LINE_S - age(h.at), balloon(h.text, false, hx + 10, half, hx + 1, 'right')))
+    out.push(during(0, LINE_S - age(h.at), balloon(h.text, false, mid + 1, Math.min(W - 1, hx + 11), hx + 1, 'right')))
   }
   const r = p.robot.line
   const rDelay = r?.isReply ? REPLY_S : 0
   if (r && age(r.at) < LINE_S + rDelay) {
     said.push(r.text)
-    out.push(during(Math.max(0, rDelay - age(r.at)), LINE_S + rDelay - age(r.at), balloon(r.text, r.isMumble, rx - 1, half, rx + 4, 'left')))
+    out.push(during(Math.max(0, rDelay - age(r.at)), LINE_S + rDelay - age(r.at), balloon(r.text, r.isMumble, Math.max(1, rx - 1), mid - 1, rx + 4, 'left')))
   }
 
   const height = H + TOP

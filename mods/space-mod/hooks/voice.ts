@@ -14,7 +14,7 @@ WHAT THEY TALK ABOUT
 - Real words from the session only when that is funny (a filename, a word the human keeps using).
 
 HOW THEY SOUND
-- Short: 2 to 8 words. Never over 50 characters.
+- Short: 2 to 6 words, one short sentence. Never over 30 characters.
 - Funny and salty, teasing, never mean. The robot has feelings and says them out loud: bored, ignored, proud, sulky, sleepy.
 - HUMAN says the gist of what they just did, in their own voice. ROBOT answers with a comeback.
 - Mumbles are the robot talking to itself while working, lowercase, often trailing off with "...".
@@ -27,11 +27,11 @@ human: "Make him look like me."     robot: "Budget doesn't cover handsome."
 human: "Yes, but..."                robot: "There's always a but."
 human: "Funnier. Saltier."          robot: "You're not listening to me."
 human: "I keep steering."           robot: "I keep drifting."
-human: "Just do it already."        robot: "Asking permission is my love language."
+human: "Just do it already."        robot: "Permission is my love language."
 human: "I want reality."            robot: "Maybe you should get out more."
 human: "Gold star, robot."          robot: "I accept cash too."
-mumble: "looking in the back drawer... ah, found it!"
-mumble: "reading the manual. nobody reads the manual."
+mumble: "back drawer... found it!"
+mumble: "reading the manual. ugh."
 mumble: "quiet in here. good quiet."
 mumble: "why. won't. you. pass."
 mumble: "brain full. nap time."
