@@ -95,7 +95,7 @@ const statusBar = (ov: Map<string, Cell>, g: Grid, p: Props, t: number, cols: nu
   bar.slice(0, cols).forEach((ch, x) => {
     const inScore = x >= cx && x < cx + center.length
     const flash = isFlash && inScore && t % 4 < 2
-    ov.set(`0,${x}`, { ch, fg: flash ? C.white : C.black, bg: flash ? C.black : C.white })
+    ov.set(`0,${x}`, { ch, fg: flash ? C.black : C.lgray, bg: flash ? C.yellow : C.black })
   })
 }
 

@@ -247,13 +247,13 @@ export const deckSvg = (p: DeskScene, now: number, bodyColumns: number) => {
     }
   }
 
-  // The status bar, Sierra style.
+  // The status bar, Sierra style, dark so it doesn't shout on a dark desktop.
   const size = 2.2
   out.push(
-    `<rect x="0" y="0" width="${W}" height="${TOP}" fill="${C.white}"/>` +
-      `<text x="1" y="2.25" font-size="${size}" ${FONT} fill="${C.black}">Claude: ${mood}</text>` +
-      `<text x="${W / 2}" y="2.25" font-size="${size}" ${FONT} fill="${C.black}" text-anchor="middle">Score: ${p.score} of 202</text>` +
-      `<text x="${W - 1}" y="2.25" font-size="${size}" ${FONT} fill="${C.black}" text-anchor="end">You: ${hMood}</text>`,
+    `<rect x="0" y="0" width="${W}" height="${TOP}" fill="${C.black}"/><rect x="0" y="${TOP - 0.4}" width="${W}" height="0.4" fill="${C.dgray}"/>` +
+      `<text x="1" y="2.25" font-size="${size}" ${FONT} fill="${C.lgray}">Claude: ${mood}</text>` +
+      `<text x="${W / 2}" y="2.25" font-size="${size}" ${FONT} fill="${C.lgray}" text-anchor="middle">Score: ${p.score} of 202</text>` +
+      `<text x="${W - 1}" y="2.25" font-size="${size}" ${FONT} fill="${C.lgray}" text-anchor="end">You: ${hMood}</text>`,
   )
 
   // Balloons, each for its last few seconds.
