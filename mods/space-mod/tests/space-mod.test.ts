@@ -20,7 +20,9 @@ const BAND = {
 describe('the brain', () => {
   test('reads the line writer’s JSON, fenced or not', async () => {
     const reply = parseReply('```json\n{"human": "Yes, but...", "humanMood": "steering", "robot": "There\'s always a but.", "kind": "redirect"}\n```')
-    expect(reply).toEqual({ human: 'Yes, but...', robot: "There's always a but.", humanMood: 'steering', kind: 'redirect' })
+    expect(reply).toEqual({ human: 'Yes, but...', robot: "There's always a but.", humanMood: 'steering', kind: 'redirect', guess: null })
+    expect(parseReply('{"robot": "lunch, probably.", "guess": "lunch"}')?.guess).toBe('away')
+    expect(parseReply('{"robot": "on Slack again?", "guess": "slack"}')?.guess).toBe('phone')
     expect(parseReply('no json here')).toBeNull()
     expect(parseReply('{"robot": "hi", "humanMood": "furious"}')?.humanMood).toBeNull()
   })
@@ -123,4 +125,19 @@ describe('balloons', () => {
     expect(robot![1]!).toBeLessThanOrEqual(W / 2)
     expect(human![0]!).toBeGreaterThanOrEqual(W / 2)
   })
+})
+
+test('a human who stepped away is a BRB sign', async () => {
+  const now = Date.now()
+  const scene = {
+    robot: { mood: 'bored' as const, line: null },
+    human: { mood: 'away' as const, line: null },
+    sky: 'calm' as const,
+    isNight: false,
+    score: 0,
+    beat: null,
+    isOff: false,
+    isWorking: false,
+  }
+  expect(deckSvg(scene, now, 100).source).toContain('>BRB</text>')
 })

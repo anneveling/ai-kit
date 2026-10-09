@@ -65,7 +65,7 @@ const balloon = (
   side: 'left' | 'right',
   room: number,
 ) => {
-  const body = clip(isMumble ? `∘ ${text}` : text, room - 2)
+  const body = clip(text, room - 2)
   const w = body.length + 2
   const cols = g[0]?.length ?? 0
   const start = side === 'left' ? Math.max(0, anchor - 1) : Math.max(0, Math.min(cols - w, anchor - w + 2))
@@ -193,7 +193,7 @@ const Deck: ClientModule<Props, Tick> = (p, surface) => {
   const hRows = humanRows(hMood, t)
   const hx = layout.hx + (hMood === 'amused' && t % 24 < 6 ? (t % 2 ? 1 : -1) : 0)
   const hy = 16 - hRows.length + jump(hMood === 'celebrating') + hop('human') + (hMood === 'happy' && t % 40 < 3 ? -1 : 0)
-  sprite(g, hRows, hx, hy)
+  if (hMood !== 'away') sprite(g, hRows, hx, hy)
   cur.humanHit = { x0: hx - 1, x1: hx + 9, row: Math.floor(hy / 2) }
 
   // Little extras around the characters.
@@ -214,6 +214,7 @@ const Deck: ClientModule<Props, Tick> = (p, surface) => {
   const zRow = Math.max(2, Math.floor(ry / 2) - 1)
   if (mood === 'asleep') write(ov, g, zRow, rx + 11 + (t % 16 < 8 ? 0 : 1), t % 16 < 8 ? 'z' : 'Z', C.white)
   if (hMood === 'asleep') write(ov, g, Math.max(2, Math.floor(hy / 2) - 1), hx + 8, t % 16 < 8 ? 'z' : 'Z', C.white)
+  if (hMood === 'away') write(ov, g, 6, hx + 2, ' BRB ', C.black, C.yellow)
   if (hMood === 'curious' && t % 16 < 12) write(ov, g, Math.max(2, Math.floor(hy / 2) - 1), hx + 4, '?', C.yellow)
 
   const room = Math.max(8, Math.floor(cols / 2) - 2)

@@ -118,6 +118,18 @@ export const skyFor = (s: Stats, now: number): Sky => {
 }
 
 const HUMAN_MOODS: readonly HumanMood[] = ['neutral', 'happy', 'amused', 'curious', 'steering', 'impatient', 'annoyed']
+// The idle guesses, and the pose the human strikes for each.
+const GUESSES: Record<string, HumanMood> = {
+  coffee: 'coffee',
+  lunch: 'away',
+  away: 'away',
+  meeting: 'away',
+  phone: 'phone',
+  slack: 'phone',
+  thinking: 'curious',
+  reading: 'curious',
+}
+
 const KINDS = ['praise', 'redirect', 'go', 'question', 'neutral'] as const
 export type PromptKind = (typeof KINDS)[number]
 
@@ -126,6 +138,8 @@ export type Reply = {
   robot: string | null
   humanMood: HumanMood | null
   kind: PromptKind | null
+  /** For an idle moment: what the robot guesses the human is doing, as a pose. */
+  guess: HumanMood | null
 }
 
 const line = (v: unknown) => {
@@ -148,7 +162,8 @@ export const parseReply = (text: string): Reply | null => {
   const o = raw as Record<string, unknown>
   const humanMood = HUMAN_MOODS.find(m => m === o.humanMood) ?? null
   const kind = KINDS.find(k => k === o.kind) ?? null
-  return { human: line(o.human), robot: line(o.robot), humanMood, kind }
+  const guess = GUESSES[String(o.guess)] ?? null
+  return { human: line(o.human), robot: line(o.robot), humanMood, kind, guess }
 }
 
 /** The facts the line writer gets besides the log. */

@@ -22,6 +22,10 @@ export type HumanMood =
   | 'tired'
   | 'asleep'
   | 'celebrating'
+  // What the robot guesses you're up to while it's quiet:
+  | 'coffee'
+  | 'phone'
+  | 'away'
 
 /** One balloon. A new `id` is what makes the scene show it. */
 export type Line = {

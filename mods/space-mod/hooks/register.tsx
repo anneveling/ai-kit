@@ -32,7 +32,7 @@ const INITIAL: Scene = {
 
 const scene = atom({ plugin: 'space-mod', key: 'scene' } as const, INITIAL)
 
-type Moment = 'prompt' | 'mumble' | 'turnEnd'
+type Moment = 'prompt' | 'mumble' | 'turnEnd' | 'idle'
 
 const MINUTE = 60_000
 const LOG_LINES = 14
@@ -55,7 +55,15 @@ const mem = {
   turnStartedAt: 0,
   robotMoment: null as { mood: RobotMood; until: number } | null,
   humanMoment: null as { mood: HumanMood; until: number } | null,
+  idleGuesses: 0,
+  lastIdleGuessAt: 0,
+  draftLength: 0,
+  saidLongDraft: false,
 }
+
+const IDLE_POSES: readonly HumanMood[] = ['coffee', 'phone', 'away', 'curious']
+const IDLE_EVERY = 4 * MINUTE
+const IDLE_GUESSES = 4
 
 function note(entry: string) {
   mem.log.push(entry)
@@ -140,6 +148,7 @@ async function speak($: EngineInterface, moment: Moment) {
       mem.log.join('\n') || '(nothing yet)',
       '',
       `COUNTS: ${countsLine(mem.stats, Date.now())}`,
+      moment === 'idle' ? `IDLE: ${Math.round((Date.now() - mem.stats.lastActivityAt) / MINUTE)} min quiet · ${new Date().toLocaleString('en-GB', { weekday: 'long', hour: '2-digit', minute: '2-digit' })}` : '',
       '',
       momentAsk[moment],
     ].join('\n')
@@ -172,6 +181,9 @@ async function speak($: EngineInterface, moment: Moment) {
         reply?.human ?? pick(canned.humanGist, mem.seq),
         reply?.robot ?? pick(canned.robotReply, mem.seq),
       )
+    } else if (moment === 'idle') {
+      if (reply?.guess) mem.humanMoment = { mood: reply.guess, until: Date.now() + IDLE_EVERY + 30_000 }
+      await say($, null, reply?.robot ?? pick(canned.bored, mem.seq), true)
     } else if (moment === 'mumble') {
       await say($, null, reply?.robot ?? pick(canned.mumble, mem.seq), true)
     } else {
@@ -196,10 +208,27 @@ async function tick($: EngineInterface) {
     mem.hasSaidBored = true
     await say($, null, pick(canned.bored, mem.seq), true)
   }
+  const quiet = now - stats.lastActivityAt
+  if (
+    !stats.isWorking &&
+    quiet > IDLE_EVERY &&
+    now - mem.lastIdleGuessAt > IDLE_EVERY &&
+    mem.idleGuesses < IDLE_GUESSES
+  ) {
+    mem.idleGuesses += 1
+    mem.lastIdleGuessAt = now
+    mem.pending.add('idle')
+  }
   if (now - mem.lastUsageAt > 30_000) await readUsage($)
 
   if (!mem.isSpeaking && mem.pending.size > 0) {
-    const moment: Moment = mem.pending.has('prompt') ? 'prompt' : mem.pending.has('turnEnd') ? 'turnEnd' : 'mumble'
+    const moment: Moment = mem.pending.has('prompt')
+      ? 'prompt'
+      : mem.pending.has('turnEnd')
+        ? 'turnEnd'
+        : mem.pending.has('idle')
+          ? 'idle'
+          : 'mumble'
     if (moment === 'prompt' || now - mem.lastCallAt > 20_000) {
       mem.pending.delete(moment)
       await speak($, moment)
@@ -268,6 +297,36 @@ async function afterCompact($: EngineInterface) {
   await refresh($)
 }
 
+// The human is back (typing or sending): drop the idle pose and say hi.
+async function noticeActivity($: EngineInterface) {
+  const now = Date.now()
+  const wasAway = now - mem.stats.lastActivityAt > IDLE_EVERY
+  const pose = mem.humanMoment?.mood
+  mem.stats.lastActivityAt = now
+  mem.hasSaidBored = false
+  mem.idleGuesses = 0
+  mem.lastIdleGuessAt = 0
+  mem.pending.delete('idle')
+  if (pose && IDLE_POSES.includes(pose)) mem.humanMoment = null
+  if (wasAway) await say($, null, pick(canned.welcomeBack, mem.seq))
+  await refresh($)
+}
+
+// Typing in the prompt box: activity, plus a remark on very long or deleted drafts.
+async function noticeDraft($: EngineInterface, before: number, after: number) {
+  const now = Date.now()
+  const wasQuiet = now - mem.stats.lastActivityAt > 30_000
+  mem.draftLength = after
+  if (wasQuiet) await noticeActivity($)
+  else mem.stats.lastActivityAt = now
+  if (after > 400 && !mem.saidLongDraft) {
+    mem.saidLongDraft = true
+    await say($, null, pick(canned.longDraft, mem.seq), true)
+  } else if (before > 60 && after === 0) {
+    await say($, null, pick(canned.deletedDraft, mem.seq), true)
+  }
+}
+
 async function runBand($: EngineInterface, args: string) {
   const [word = '', ...rest] = args.trim().split(/\s+/)
   const text = rest.join(' ').trim()
@@ -315,11 +374,21 @@ export const register: Register = on => {
     const isPerson = e.origin.kind === 'composer' || e.origin.kind === 'bridge'
     if (isPerson && !e.text.trimStart().startsWith('/')) {
       note(`you: "${clipText(e.text, 160)}"`)
-      mem.stats.lastActivityAt = Date.now()
-      mem.hasSaidBored = false
+      mem.saidLongDraft = false
+      mem.draftLength = 0
+      await noticeActivity($).catch(() => {})
       mem.lastMumbleAt = Date.now()
       mem.pending.add('prompt')
     }
+
+    return next(e)
+  }).catch(($, e, next) => next(e))
+
+  on('prompt.edit', async ($, e, next) => {
+    const before = e.text.length
+    const after = before - (e.end - e.start) + e.inputText.length
+    // Mostly bookkeeping; it only writes the scene on a rare remark.
+    await noticeDraft($, before, after).catch(() => {})
 
     return next(e)
   }).catch(($, e, next) => next(e))

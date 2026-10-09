@@ -44,6 +44,7 @@ export const PAL: Record<string, string> = {
   W: C.white,
   D: C.dgray,
   L: C.lgray,
+  C: C.lcyan,
 }
 
 export const put = (g: Grid, x: number, y: number, c: string) => {
@@ -168,8 +169,16 @@ export const humanRows = (mood: HumanMood, t: number) => {
       if (mood === 'impatient' && t % 6 < 3) set(9, '...P.....')
       break
     case 'tired':
+    case 'coffee':
       set(6, '..TTYTTW.')
       set(7, '.STTTTTSW')
+      break
+    case 'phone':
+      // Head down, both hands on a phone.
+      for (const i of [5, 4, 3, 2, 1]) set(i, HUMAN[i - 1] ?? '.........')
+      set(0, '.........')
+      set(6, '.STCCTS..')
+      set(7, '..TTTTT..')
       break
     case 'asleep':
       for (const i of [0, 1, 2, 3, 4, 5]) set(i, '.' + (rows[i] ?? '').slice(0, 8))

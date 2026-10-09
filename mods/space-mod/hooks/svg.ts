@@ -108,7 +108,7 @@ const balloon = (text: string, isMumble: boolean, lane0: number, lane1: number, 
   const size = 2
   const lead = 2.5
   const max = Math.max(6, Math.floor((lane1 - lane0 - 2) / (size * 0.6)))
-  const lines = wrap(isMumble ? `∘ ${text}` : text, max)
+  const lines = wrap(text, max)
   const longest = Math.max(...lines.map(l => l.length))
   const bw = textWidth(longest, size) + 2
   const bh = lines.length * lead + 1
@@ -117,13 +117,14 @@ const balloon = (text: string, isMumble: boolean, lane0: number, lane1: number, 
   const fill = isMumble ? '#1A1A1A' : C.white
   const ink = isMumble ? C.lgray : C.black
   const tailY = Math.ceil(y + bh)
+  // A thought: three little bubbles rising from the head. A word: a pointed tail.
   const tailPx = isMumble
-    ? `<rect x="${tail}" y="${tailY}" width="1" height="1" fill="${C.lgray}"/>`
+    ? [0, 1, 2].map(i => `<circle cx="${n(tail + 0.5 + i * 0.8)}" cy="${n(tailY + 3.6 - i * 1.5)}" r="${n(0.35 + i * 0.2)}" fill="${fill}" stroke="${C.lgray}" stroke-width="0.15" shape-rendering="geometricPrecision"/>`).join('')
     : `<rect x="${tail}" y="${tailY}" width="1" height="1" fill="${fill}"/><rect x="${tail + (side === 'left' ? 1 : -1)}" y="${tailY + 1}" width="1" height="1" fill="${fill}"/>`
   const texts = lines
     .map(
       (l, i) =>
-        `<text x="${n(x + 1)}" y="${n(y + 0.5 + size + i * lead)}" font-size="${size}" ${FONT} fill="${ink}" textLength="${n(textWidth(l.length, size))}" lengthAdjust="spacingAndGlyphs">${escape(l)}</text>`,
+        `<text x="${n(x + 1)}" y="${n(y + 0.5 + size + i * lead)}" font-size="${size}" ${FONT} fill="${ink}"${isMumble ? ' font-style="italic"' : ''} textLength="${n(textWidth(l.length, size))}" lengthAdjust="spacingAndGlyphs">${escape(l)}</text>`,
     )
     .join('')
   return `<rect x="${n(x)}" y="${y}" width="${n(bw)}" height="${n(bh)}" fill="${fill}"/>` + tailPx + texts
@@ -215,7 +216,12 @@ export const deckSvg = (p: DeskScene, now: number, bodyColumns: number) => {
     drawHumanExtras(g, hMood, 2 + dx, hy, t)
     humanFrames.push(paths(g, hx - 2, TOP))
   }
-  out.push(flipbook(humanFrames))
+  if (hMood === 'away')
+    out.push(
+      `<rect x="${hx + 1}" y="${TOP + 11}" width="8" height="3.4" fill="${C.yellow}"/><rect x="${hx + 4.5}" y="${TOP + 14.4}" width="1" height="1.6" fill="${C.brown}"/>` +
+        `<text x="${hx + 5}" y="${TOP + 13.5}" font-size="2.2" ${FONT} fill="${C.black}" text-anchor="middle">BRB</text>`,
+    )
+  else out.push(flipbook(humanFrames))
   if (hMood === 'asleep') out.push(`<text x="${hx + 8}" y="${TOP + 5}" font-size="2.6" ${FONT} fill="${C.white}">z<animate attributeName="opacity" values="1;0.2;1" dur="2s" repeatCount="indefinite"/></text>`)
   if (hMood === 'curious') out.push(`<text x="${hx + 3.5}" y="${TOP + 5}" font-size="2.6" ${FONT} fill="${C.yellow}">?</text>`)
 

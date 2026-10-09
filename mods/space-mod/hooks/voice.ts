@@ -45,6 +45,9 @@ humanMood is one of "neutral", "happy", "amused", "curious", "steering", "impati
 kind is "praise" (they liked something), "redirect" (they corrected or changed direction), "go" (they said yes / carry on), "question", or "neutral".`,
   mumble: `MOMENT: the robot has been working for a while (the latest "me:" lines).
 Return {"robot": "<mumble about how the work is going, to itself>"}`,
+  idle: `MOMENT: nothing has happened for a while (see IDLE below). The robot guesses what the human is up to, teasing, from the time of day, how long it's been and what happened last. Or it wonders aloud what they think of its work.
+Return {"robot": "<guess, to itself>", "guess": <guess>}
+guess is "coffee", "lunch", "phone", "slack", "meeting", "away", "thinking" or "reading".`,
   turnEnd: `MOMENT: the robot just finished a long stretch of work and handed back to the human.
 Return {"robot": "<how it feels about how that went>", "human": "<optional short reaction, or null>"}`,
 }
@@ -60,6 +63,9 @@ export const canned = {
   ],
   bored: ['hello? anyone?', "I'm bored.", 'counting stars. 4,012...'],
   sleepy: ['brain full. nap time.', '*yawns*'],
+  welcomeBack: ['Oh! You\'re back.', 'Missed you. Not really.', 'Welcome back, boss.'],
+  longDraft: ['uh oh. it\'s a long one.', 'writing me a novel?', 'this will be a lot of work...'],
+  deletedDraft: ['typed it. deleted it. hmm.', 'what were you going to say?', 'second thoughts?'],
   coffee: ['ahh. memory wiped. coffee.', 'fresh start. who are you again?'],
   esc: ['Hey! I was doing a thing.', 'Rude.', 'Fine. FINE.'],
   frustrated: ['why. won\'t. you. pass.', 'it worked on my machine. I am the machine.'],

@@ -25,6 +25,7 @@ A band above the Claude Code prompt that shows how the collaboration is going, d
   - Tense: an amber stripe and a yellow planet.
   - Red alert: flashing lights and stars rushing past.
   - Late at night the lighting goes dim.
+- **When it's quiet:** every 4 minutes (at most 4 times) the robot guesses what you're up to from the time of day and what happened last, and you act it out: coffee, phone, or a BRB sign. It notices when you're back, when you're typing a very long prompt, and when you delete one.
 - **Moments:** confetti for green tests and PRs. Esc knocks the robot over, legs up, with a Sierra-style death message.
 
 ## Commands
@@ -64,4 +65,5 @@ Run the tests with `claude plugin test mods/space-mod`. Check the module with `c
 
 - Poking the characters works in the terminal only. On desktop the SVG can't take clicks.
 - On desktop the band's width is converted to pixels with an estimate of ~7.8 CSS px per column.
-- Per prompt it makes one Haiku call, plus at most one mumble every 20 seconds during long work.
+- Claude Code doesn't tell a mod whether the window is focused, so "quiet" means no prompts, no typing and no work in this session.
+- Per prompt it makes one Haiku call, plus at most one mumble every 20 seconds during long work and four idle guesses per quiet stretch.
