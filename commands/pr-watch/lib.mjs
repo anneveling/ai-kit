@@ -218,6 +218,12 @@ function closeBicGaps(balls, pr, pendingReReq, authorLogin) {
   return balls;
 }
 
+// A draft nobody has been asked to review: only its author has the ball, so
+// hiding it can't hide a PR that's waiting on someone else.
+export function isParkedDraft(pr) {
+  return Boolean(pr.isDraft) && (pr.reviewRequests || []).length === 0;
+}
+
 export function ballInCourt(pr, me) {
   const balls = new Set();
   const authorLogin = pr.author && pr.author.login;

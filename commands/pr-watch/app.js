@@ -2,7 +2,7 @@ import {
   ballInCourt, bicSince, bouncesCount,
   ageStr, ageMarker,
   ciChip, mergeChip, reviewChip, priorityChip, ctaChip, otherReviewers,
-  claudeLinks, claudePrompt,
+  claudeLinks, claudePrompt, isParkedDraft,
 } from "./lib.mjs";
 
 // Set from the `viewer` field of the first payload — see applyPayload.
@@ -123,9 +123,9 @@ function updateClaudeTargetToggle() {
     ". Click to switch. ⌥-click a chip to use the other one.";
 }
 
-// ── Drafts ───────────────────────────────────────────────────────────────────
-// Hide draft PRs (saved in config.json, so it survives upgrades). Off by default:
-// a draft can carry a real early-review request.
+// ── Parked drafts ────────────────────────────────────────────────────────────
+// Hide drafts nobody is asked to review (saved in config.json, so it survives
+// upgrades). Drafts with a review request always show.
 let hideDrafts = false;
 async function setHideDrafts(on) {
   hideDrafts = on;
@@ -138,13 +138,15 @@ async function setHideDrafts(on) {
     });
   } catch (err) { console.error("could not save drafts preference", err); }
 }
-function updateDraftsToggle(draftCount) {
+function updateDraftsToggle(parkedCount) {
   const el = document.getElementById("drafts-toggle");
   if (!el) return;
   // Nothing to toggle without drafts, unless hiding is on (so it can be turned off).
-  el.hidden = draftCount === 0 && !hideDrafts;
-  el.textContent = (hideDrafts ? "Drafts: hidden" : "Drafts: shown") + " (" + draftCount + ")";
-  el.title = hideDrafts ? "Click to show draft PRs again" : "Click to hide draft PRs";
+  el.hidden = parkedCount === 0 && !hideDrafts;
+  el.textContent = (hideDrafts ? "Parked drafts: hidden" : "Parked drafts: shown") + " (" + parkedCount + ")";
+  el.title = "Drafts with no review requested. " +
+    (hideDrafts ? "Click to show them again." : "Click to hide them.") +
+    " Drafts someone is asked to review always show.";
 }
 
 // Small popover anchored under a chip. `onAction(button)` handles clicks on
@@ -278,9 +280,8 @@ function applyPayload(payload) {
 
 function render() {
   if (!lastPrs) return;
-  const draftCount = lastPrs.filter((p) => p.isDraft).length;
-  updateDraftsToggle(draftCount);
-  const prs = hideDrafts ? lastPrs.filter((p) => !p.isDraft) : lastPrs;
+  updateDraftsToggle(lastPrs.filter(isParkedDraft).length);
+  const prs = hideDrafts ? lastPrs.filter((p) => !isParkedDraft(p)) : lastPrs;
   const bic = prs.filter(isBIC);
   const wait = prs.filter((p) => !isBIC(p));
 

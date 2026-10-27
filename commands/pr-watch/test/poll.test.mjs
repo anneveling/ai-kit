@@ -5,7 +5,7 @@ import {
   latestMyReview, ballInCourt, bicSince, bouncesCount,
   ageStr, ageMarker, ciChip, mergeChip, reviewChip, priorityChip,
   effectiveReviewDecision, isReviewInProgress,
-  resolveRepoPath, claudePrompt, claudeLinks, sanitizeConfig, guessClaudeTarget,
+  resolveRepoPath, claudePrompt, claudeLinks, sanitizeConfig, guessClaudeTarget, isParkedDraft,
   slugFromRemoteUrl, originUrlFromGitConfig, claudeKnownRepoPaths, ctaChip, otherReviewers,
 } from "../lib.mjs";
 
@@ -1177,6 +1177,13 @@ test("sanitizeConfig: unknown target or garbage means 'not chosen yet'", () => {
   assert.deepEqual(sanitizeConfig({ claudeTarget: "vscode" }), {});
   assert.deepEqual(sanitizeConfig(null), {});
   assert.deepEqual(sanitizeConfig("x"), {});
+});
+
+test("isParkedDraft: only drafts with no review requested", () => {
+  assert.equal(isParkedDraft({ isDraft: true, reviewRequests: [] }), true);
+  assert.equal(isParkedDraft({ isDraft: true }), true);
+  assert.equal(isParkedDraft({ isDraft: true, reviewRequests: ["bob"] }), false);
+  assert.equal(isParkedDraft({ isDraft: false, reviewRequests: [] }), false);
 });
 
 test("sanitizeConfig: hideDrafts kept only when true", () => {
