@@ -217,7 +217,7 @@ Emitted immediately before the process exits at stop time.
 }
 ```
 
-`parkedDrafts` (0.19.0+) counts PRs left out of `prs`: your own drafts with no review requested and no reviews yet (`isParkedDraft` in `lib.mjs`). They stay in `state.json`, emit no events while parked, and reappear once a review is requested or submitted.
+`hiddenDrafts` (0.19.0+) counts PRs left out of `prs`: your own drafts with no review requested and no reviews yet (`isHiddenDraft` in `lib.mjs`). They stay in `state.json`, emit no events while hidden, and reappear once a review is requested or submitted.
 
 `repoPaths` (0.18.0+, optional) maps each repo to its local clone; `source` is `config` (repos.json), `claude` (folders Claude Code knows from `~/.claude.json`), or `null` with `path: null` when unknown.
 
