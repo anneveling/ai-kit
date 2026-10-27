@@ -1,0 +1,12 @@
+{
+  "name": "ai-kit",
+  "owner": { "name": "anneveling" },
+  "description": "Claude Code building blocks from ai-kit.",
+  "plugins": [
+    {
+      "name": "space-mod",
+      "source": "./mods/space-mod",
+      "description": "A 90s-adventure-game band above the prompt: the Claude robot and you on a ship deck, showing how the collaboration is going."
+    }
+  ]
+}

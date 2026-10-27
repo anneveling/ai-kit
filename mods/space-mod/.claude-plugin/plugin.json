@@ -1,0 +1,7 @@
+{
+  "name": "space-mod",
+  "version": "0.1.0",
+  "description": "A 90s-adventure-game band above the prompt: the Claude robot and you on a ship deck, showing how the collaboration is going.",
+  "author": { "name": "anneveling" },
+  "types": "./types/index.d.ts"
+}
