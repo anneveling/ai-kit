@@ -16,7 +16,7 @@ import { createServer } from "http";
 import { tmpdir } from "os";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
-import { buildPayload, ciSummary } from "../lib.mjs";
+import { buildPayload, ciSummary, isParkedDraft } from "../lib.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "docs", "dashboard.png");
@@ -62,8 +62,12 @@ function expand(p) {
   };
 }
 
+// Same filter as poll.mjs saveCurrent: parked drafts are left out.
+const allPrs = demo.prs.map(expand);
+const shownPrs = allPrs.filter((p) => !isParkedDraft(p));
 const payload = {
-  ...buildPayload(demo.prs.map(expand), demo.viewer, { schemaVersion: 1, pollerVersion: version }),
+  ...buildPayload(shownPrs, demo.viewer, { schemaVersion: 1, pollerVersion: version }),
+  parkedDrafts: allPrs.length - shownPrs.length,
   repoPaths: Object.fromEntries(Object.entries(demo.repoPaths).map(([repo, path]) => [repo, { path, source: path ? "claude" : null }])),
   config: { claudeTarget: "desktop" },
   claudeTargets: { desktop: true, cli: true, guess: "desktop" },

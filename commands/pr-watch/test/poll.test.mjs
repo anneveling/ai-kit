@@ -1179,17 +1179,19 @@ test("sanitizeConfig: unknown target or garbage means 'not chosen yet'", () => {
   assert.deepEqual(sanitizeConfig("x"), {});
 });
 
-test("isParkedDraft: only drafts with no review requested", () => {
-  assert.equal(isParkedDraft({ isDraft: true, reviewRequests: [] }), true);
-  assert.equal(isParkedDraft({ isDraft: true }), true);
-  assert.equal(isParkedDraft({ isDraft: true, reviewRequests: ["bob"] }), false);
-  assert.equal(isParkedDraft({ isDraft: false, reviewRequests: [] }), false);
+test("isParkedDraft: your own draft with no reviewers yet", () => {
+  assert.equal(isParkedDraft({ isDraft: true, role: "author", reviewRequests: [], latestReviews: [] }), true);
+  assert.equal(isParkedDraft({ isDraft: true, role: "author" }), true);
 });
 
-test("sanitizeConfig: hideDrafts kept only when true", () => {
-  assert.deepEqual(sanitizeConfig({ hideDrafts: true, claudeTarget: "cli" }), { claudeTarget: "cli", hideDrafts: true });
-  assert.deepEqual(sanitizeConfig({ hideDrafts: false }), {});
-  assert.deepEqual(sanitizeConfig({ hideDrafts: "yes" }), {});
+test("isParkedDraft: shows again once anyone is requested or has reviewed", () => {
+  assert.equal(isParkedDraft({ isDraft: true, role: "author", reviewRequests: ["bob"] }), false);
+  assert.equal(isParkedDraft({ isDraft: true, role: "author", latestReviews: [{ login: "bob", state: "COMMENTED" }] }), false);
+});
+
+test("isParkedDraft: never someone else's draft or a ready PR", () => {
+  assert.equal(isParkedDraft({ isDraft: true, role: "reviewer" }), false);
+  assert.equal(isParkedDraft({ isDraft: false, role: "author" }), false);
 });
 
 test("guessClaudeTarget: desktop app wins, then the terminal handler", () => {

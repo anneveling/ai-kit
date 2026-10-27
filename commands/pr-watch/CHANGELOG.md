@@ -2,14 +2,13 @@
 
 ## 0.19.0 (2026-10-27)
 
-### Hide parked drafts
+### Parked drafts are hidden
 
-Old PRs parked as drafts sat in **YOUR TURN** (a draft with no reviewers is the author's ball). A header button **Parked drafts: shown (N)** now hides drafts nobody has been asked to review, from both lanes; it only appears when there are some (or while hiding is on). The choice is saved as `hideDrafts` in `~/.claude/pr-watch/config.json`, next to the Claude target, so upgrades don't reset it.
+Old PRs parked as drafts sat in **YOUR TURN** (a draft with no reviewers is the author's ball). Your own drafts with no reviewers yet (none requested, nobody reviewed) are now left out of `current.json`, so neither the dashboard nor `/pr-watch` shows them. No setting: the header shows a muted "N parked drafts hidden".
 
-- Drafts with a review request always show, toggle or not: they're in a reviewer's court, and hiding them would drop a real request.
-- Shown by default; one click to hide.
-- Hiding is a view filter only: ball-in-court rules and `/pr-watch` events are unchanged.
-- `scripts/screenshot.mjs`: demo PRs can set `"draft": true`.
+- They show again as soon as you request a review or someone reviews, so this never hides a PR that's in someone else's court. Other people's drafts always show.
+- The poller still tracks them in `state.json`; it just doesn't emit `new`/`changed`/`closed` events for them while they're parked. `current.json` gets a `parkedDrafts` count.
+- `scripts/screenshot.mjs`: demo PRs can set `"draft": true` and get the same filter.
 
 ## 0.18.0 (2026-09-30)
 

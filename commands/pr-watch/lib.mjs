@@ -218,10 +218,12 @@ function closeBicGaps(balls, pr, pendingReReq, authorLogin) {
   return balls;
 }
 
-// A draft nobody has been asked to review: only its author has the ball, so
-// hiding it can't hide a PR that's waiting on someone else.
+// Your own draft with no reviewers yet (none requested, none reviewed): parked,
+// so the poller leaves it out of current.json. Once anyone is asked to review
+// or has reviewed, it shows again, so this never hides a PR in someone's court.
 export function isParkedDraft(pr) {
-  return Boolean(pr.isDraft) && (pr.reviewRequests || []).length === 0;
+  return Boolean(pr.isDraft) && pr.role === "author" &&
+    (pr.reviewRequests || []).length === 0 && (pr.latestReviews || []).length === 0;
 }
 
 export function ballInCourt(pr, me) {
@@ -563,6 +565,5 @@ export const CLAUDE_TARGETS = ["desktop", "cli"];
 export function sanitizeConfig(raw) {
   const out = {};
   if (raw && CLAUDE_TARGETS.includes(raw.claudeTarget)) out.claudeTarget = raw.claudeTarget;
-  if (raw && raw.hideDrafts === true) out.hideDrafts = true;
   return out;
 }

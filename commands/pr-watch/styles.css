@@ -425,4 +425,3 @@ a { color: inherit; }
 #top-lane .pr .peer-approved .avatar-fallback { box-shadow: 0 0 0 2px #1f9d4a; }
 #top-lane .pr .peer-other .avatar,
 #top-lane .pr .peer-other .avatar-fallback { box-shadow: 0 0 0 2px #e8811a; }
-#drafts-toggle[hidden] { display: none; }

@@ -198,7 +198,7 @@ Emitted immediately before the process exits at stop time.
 |---|---|
 | `$STATE_DIR/state.json` | Full enriched PR data keyed by URL, used for change detection between polls |
 | `$STATE_DIR/current.json` | Versioned payload with current open PRs — read this to render the inbox |
-| `$STATE_DIR/config.json` | Dashboard preferences: `{ "claudeTarget": "desktop" \| "cli", "hideDrafts": true }` (both optional), written by the dashboard via `POST /config` |
+| `$STATE_DIR/config.json` | Dashboard preferences: `{ "claudeTarget": "desktop" \| "cli" }`, written by the dashboard via `POST /config` |
 | `$STATE_DIR/repos.json` | `{ "owner/name": "/abs/path" }` local clone overrides, written by `repos.mjs` — hand-editable |
 
 `current.json` has this envelope (schemaVersion is enforced by the dashboard):
@@ -216,6 +216,8 @@ Emitted immediately before the process exits at stop time.
   "reposScript": "/Users/me/.claude/pr-watch/repos.mjs"
 }
 ```
+
+`parkedDrafts` (0.19.0+) counts PRs left out of `prs`: your own drafts with no review requested and no reviews yet (`isParkedDraft` in `lib.mjs`). They stay in `state.json`, emit no events while parked, and reappear once a review is requested or submitted.
 
 `repoPaths` (0.18.0+, optional) maps each repo to its local clone; `source` is `config` (repos.json), `claude` (folders Claude Code knows from `~/.claude.json`), or `null` with `path: null` when unknown.
 

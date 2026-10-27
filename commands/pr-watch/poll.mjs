@@ -27,7 +27,7 @@ import { createServer } from "http";
 import { homedir } from "os";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
-import { buildPayload, ciSummary, computeEvents, computeStopTime, diffPr, claudeKnownRepoPaths, guessClaudeTarget, resolveRepoPath, sanitizeConfig } from "./lib.mjs";
+import { buildPayload, ciSummary, computeEvents, computeStopTime, diffPr, claudeKnownRepoPaths, guessClaudeTarget, isParkedDraft, resolveRepoPath, sanitizeConfig } from "./lib.mjs";
 
 const SCHEMA_VERSION = 1;
 const POLLER_VERSION = "0.19.0";
@@ -236,10 +236,13 @@ function detectClaudeTargets() {
 const CLAUDE_TARGETS_FOUND = detectClaudeTargets();
 const claudeTargets = { ...CLAUDE_TARGETS_FOUND, guess: guessClaudeTarget(CLAUDE_TARGETS_FOUND) };
 
-function saveCurrent(prs, viewer) {
+// Parked drafts (see isParkedDraft) stay in state.json but are left out of
+// current.json, so the dashboard and /pr-watch both skip them.
+function saveCurrent(allPrs, viewer) {
+  const prs = allPrs.filter((p) => !isParkedDraft(p));
   const repoPaths = resolveRepoPaths(new Set(prs.map((p) => p.repo)));
   const config = sanitizeConfig(readJson(CONFIG_FILE));
-  const payload = { ...buildPayload(prs, viewer, { schemaVersion: SCHEMA_VERSION, pollerVersion: POLLER_VERSION }), repoPaths, config, claudeTargets, reposScript: join(SCRIPT_DIR, "repos.mjs") };
+  const payload = { ...buildPayload(prs, viewer, { schemaVersion: SCHEMA_VERSION, pollerVersion: POLLER_VERSION }), repoPaths, config, claudeTargets, reposScript: join(SCRIPT_DIR, "repos.mjs"), parkedDrafts: allPrs.length - prs.length };
   writeFileSync(CURRENT_FILE, JSON.stringify(payload, null, 2));
   broadcastDashboard(payload);
   return repoPaths;
@@ -442,10 +445,11 @@ async function pollOnce(isFirstRun, me) {
 
   saveState(nextState);
   const repoPaths = saveCurrent(Object.values(nextState), me);
-  for (const event of events) emit(event);
+  const parked = (url) => { const p = nextState[url] || prevState[url]; return p && isParkedDraft(p); };
+  for (const event of events) if (!parked(event.url)) emit(event);
 
   if (isFirstRun) {
-    const count = Object.keys(nextState).length;
+    const count = Object.values(nextState).filter((p) => !isParkedDraft(p)).length;
     console.error(`Initialized: tracking ${count} PRs. Polling every ${POLL_INTERVAL}s. Auto-stop at ${stopLabel}.`);
     const unmappedRepos = Object.keys(repoPaths).filter((r) => !repoPaths[r].path).sort();
     if (unmappedRepos.length) {
