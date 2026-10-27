@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.19.0 (2026-10-27)
+
+### Your drafts are hidden until they have reviewers
+
+Old PRs kept as drafts for safekeeping sat in **YOUR TURN** (a draft with no reviewers is the author's ball). Your own drafts with no reviewers yet (none requested, nobody reviewed) are now left out of `current.json`, so neither the dashboard nor `/pr-watch` shows them. No setting: the header shows a muted "N draft PRs hidden".
+
+- They show again as soon as you request a review or someone reviews, so this never hides a PR that's in someone else's court. Other people's drafts show once they ask you to review (or you've reviewed them), like any PR.
+- The poller still tracks them in `state.json`; it just doesn't emit `new`/`changed`/`closed` events for them while they're hidden. `current.json` gets a `hiddenDrafts` count.
+- `scripts/screenshot.mjs`: demo PRs can set `"draft": true` and get the same filter.
+
 ## 0.18.0 (2026-09-30)
 
 ### Open a PR in Claude from the dashboard

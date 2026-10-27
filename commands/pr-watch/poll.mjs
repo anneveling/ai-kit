@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// poll.mjs — version 0.18.0
+// poll.mjs — version 0.19.0
 // source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch
 // Polls GitHub for open PRs you authored or are requested to review.
 // Emits JSON change-event lines to stdout when anything changes.
@@ -27,10 +27,10 @@ import { createServer } from "http";
 import { homedir } from "os";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
-import { buildPayload, ciSummary, computeEvents, computeStopTime, diffPr, claudeKnownRepoPaths, guessClaudeTarget, resolveRepoPath, sanitizeConfig } from "./lib.mjs";
+import { buildPayload, ciSummary, computeEvents, computeStopTime, diffPr, claudeKnownRepoPaths, guessClaudeTarget, isHiddenDraft, resolveRepoPath, sanitizeConfig } from "./lib.mjs";
 
 const SCHEMA_VERSION = 1;
-const POLLER_VERSION = "0.18.0";
+const POLLER_VERSION = "0.19.0";
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 
 // ── Preflight ────────────────────────────────────────────────────────────────
@@ -236,10 +236,13 @@ function detectClaudeTargets() {
 const CLAUDE_TARGETS_FOUND = detectClaudeTargets();
 const claudeTargets = { ...CLAUDE_TARGETS_FOUND, guess: guessClaudeTarget(CLAUDE_TARGETS_FOUND) };
 
-function saveCurrent(prs, viewer) {
+// Your drafts with no reviewers yet (see isHiddenDraft) stay in state.json but are left out of
+// current.json, so the dashboard and /pr-watch both skip them.
+function saveCurrent(allPrs, viewer) {
+  const prs = allPrs.filter((p) => !isHiddenDraft(p));
   const repoPaths = resolveRepoPaths(new Set(prs.map((p) => p.repo)));
   const config = sanitizeConfig(readJson(CONFIG_FILE));
-  const payload = { ...buildPayload(prs, viewer, { schemaVersion: SCHEMA_VERSION, pollerVersion: POLLER_VERSION }), repoPaths, config, claudeTargets, reposScript: join(SCRIPT_DIR, "repos.mjs") };
+  const payload = { ...buildPayload(prs, viewer, { schemaVersion: SCHEMA_VERSION, pollerVersion: POLLER_VERSION }), repoPaths, config, claudeTargets, reposScript: join(SCRIPT_DIR, "repos.mjs"), hiddenDrafts: allPrs.length - prs.length };
   writeFileSync(CURRENT_FILE, JSON.stringify(payload, null, 2));
   broadcastDashboard(payload);
   return repoPaths;
@@ -442,10 +445,11 @@ async function pollOnce(isFirstRun, me) {
 
   saveState(nextState);
   const repoPaths = saveCurrent(Object.values(nextState), me);
-  for (const event of events) emit(event);
+  const hidden = (url) => { const p = nextState[url] || prevState[url]; return p && isHiddenDraft(p); };
+  for (const event of events) if (!hidden(event.url)) emit(event);
 
   if (isFirstRun) {
-    const count = Object.keys(nextState).length;
+    const count = Object.values(nextState).filter((p) => !isHiddenDraft(p)).length;
     console.error(`Initialized: tracking ${count} PRs. Polling every ${POLL_INTERVAL}s. Auto-stop at ${stopLabel}.`);
     const unmappedRepos = Object.keys(repoPaths).filter((r) => !repoPaths[r].path).sort();
     if (unmappedRepos.length) {

@@ -213,6 +213,9 @@ function applyPayload(payload) {
   if (payload.reposScript) reposScript = payload.reposScript;
   if (payload.claudeTargets) detectedTarget = payload.claudeTargets.guess || null;
   if (payload.config) claudeTarget = payload.config.claudeTarget || null;
+  const hiddenEl = document.getElementById("hidden-drafts");
+  hiddenEl.hidden = !payload.hiddenDrafts;
+  hiddenEl.textContent = payload.hiddenDrafts + " draft PR" + (payload.hiddenDrafts === 1 ? "" : "s") + " hidden";
   updateClaudeTargetToggle();
   if (!GITHUB_USER) {
     document.body.innerHTML = '<pre style="padding:2rem;color:#e6edf3">pr-watch: viewer missing from payload. Is the poller signed in with `gh auth login`?</pre>';

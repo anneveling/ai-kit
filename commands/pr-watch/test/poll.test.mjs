@@ -5,7 +5,7 @@ import {
   latestMyReview, ballInCourt, bicSince, bouncesCount,
   ageStr, ageMarker, ciChip, mergeChip, reviewChip, priorityChip,
   effectiveReviewDecision, isReviewInProgress,
-  resolveRepoPath, claudePrompt, claudeLinks, sanitizeConfig, guessClaudeTarget,
+  resolveRepoPath, claudePrompt, claudeLinks, sanitizeConfig, guessClaudeTarget, isHiddenDraft,
   slugFromRemoteUrl, originUrlFromGitConfig, claudeKnownRepoPaths, ctaChip, otherReviewers,
 } from "../lib.mjs";
 
@@ -1177,6 +1177,21 @@ test("sanitizeConfig: unknown target or garbage means 'not chosen yet'", () => {
   assert.deepEqual(sanitizeConfig({ claudeTarget: "vscode" }), {});
   assert.deepEqual(sanitizeConfig(null), {});
   assert.deepEqual(sanitizeConfig("x"), {});
+});
+
+test("isHiddenDraft: your own draft with no reviewers yet", () => {
+  assert.equal(isHiddenDraft({ isDraft: true, role: "author", reviewRequests: [], latestReviews: [] }), true);
+  assert.equal(isHiddenDraft({ isDraft: true, role: "author" }), true);
+});
+
+test("isHiddenDraft: shows again once anyone is requested or has reviewed", () => {
+  assert.equal(isHiddenDraft({ isDraft: true, role: "author", reviewRequests: ["bob"] }), false);
+  assert.equal(isHiddenDraft({ isDraft: true, role: "author", latestReviews: [{ login: "bob", state: "COMMENTED" }] }), false);
+});
+
+test("isHiddenDraft: never someone else's draft or a ready PR", () => {
+  assert.equal(isHiddenDraft({ isDraft: true, role: "reviewer" }), false);
+  assert.equal(isHiddenDraft({ isDraft: false, role: "author" }), false);
 });
 
 test("guessClaudeTarget: desktop app wins, then the terminal handler", () => {

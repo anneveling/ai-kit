@@ -217,6 +217,8 @@ Emitted immediately before the process exits at stop time.
 }
 ```
 
+`hiddenDrafts` (0.19.0+) counts PRs left out of `prs`: your own drafts with no review requested and no reviews yet (`isHiddenDraft` in `lib.mjs`). They stay in `state.json`, emit no events while hidden, and reappear once a review is requested or submitted.
+
 `repoPaths` (0.18.0+, optional) maps each repo to its local clone; `source` is `config` (repos.json), `claude` (folders Claude Code knows from `~/.claude.json`), or `null` with `path: null` when unknown.
 
 The command reads `current.json` on every event to build the display. `state.json` is internal to the poller.

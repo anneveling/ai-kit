@@ -218,6 +218,13 @@ function closeBicGaps(balls, pr, pendingReReq, authorLogin) {
   return balls;
 }
 
+// Your own draft with no reviewers yet (none requested, none reviewed): the poller leaves it out of current.json. Once anyone is asked to review
+// or has reviewed, it shows again, so this never hides a PR in someone's court.
+export function isHiddenDraft(pr) {
+  return Boolean(pr.isDraft) && pr.role === "author" &&
+    (pr.reviewRequests || []).length === 0 && (pr.latestReviews || []).length === 0;
+}
+
 export function ballInCourt(pr, me) {
   const balls = new Set();
   const authorLogin = pr.author && pr.author.login;

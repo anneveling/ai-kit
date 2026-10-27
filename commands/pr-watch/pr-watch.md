@@ -1,8 +1,8 @@
-<!-- version: 0.18.0 | source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch -->
+<!-- version: 0.19.0 | source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch -->
 
 ## About this command
 
-Installed version: **0.18.0**  
+Installed version: **0.19.0**  
 Source: https://github.com/anneveling/ai-kit/tree/main/commands/pr-watch
 
 ### Checking for updates
@@ -106,7 +106,7 @@ Use 24h local time (HH:MM) for both the current time and the stop time. The stop
 
 ## On the `initialized` event
 
-Read `~/.claude/pr-watch/current.json` and display the full current state grouped by repo, using the format above. Mention the stop time prominently: "Monitoring until HH:MM (Xh Ym from now)."
+Read `~/.claude/pr-watch/current.json` and display the full current state grouped by repo, using the format above. Mention the stop time prominently: "Monitoring until HH:MM (Xh Ym from now)." If `hiddenDrafts` is above 0, add one line: "N draft PRs hidden (your drafts with no reviewers yet)."
 
 If the event's `unmappedRepos` is non-empty, mention it once in one line — don't ask a question. Those repos have no known local clone, so their dashboard chips can only open a terminal. Give the command to map them, filling in a likely path if a sibling repo's path in `current.json` → `repoPaths` hints at a folder layout:
 
