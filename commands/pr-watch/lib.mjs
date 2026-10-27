@@ -557,5 +557,6 @@ export const CLAUDE_TARGETS = ["desktop", "cli"];
 export function sanitizeConfig(raw) {
   const out = {};
   if (raw && CLAUDE_TARGETS.includes(raw.claudeTarget)) out.claudeTarget = raw.claudeTarget;
+  if (raw && raw.hideDrafts === true) out.hideDrafts = true;
   return out;
 }

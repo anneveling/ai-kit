@@ -39,6 +39,8 @@ Both modes auto-stop at 18:00 by default so you never accidentally leave a sessi
 
 The browser dashboard opens automatically at `http://localhost:7654` when you start pr-watch. **YOUR TURN** (top) shows the PRs that need your action as white cards: author avatar, PR number and Linear key, title, and a footer with the **action button** (Review, Fix, Merge, …) on the left and plain status labels (CI, merge state, review bounces, age) on the right. On PRs you're asked to review, small avatars next to the button show colleagues who already looked: a green ring means they approved, orange means they requested changes or commented — handy for deciding what can wait. **WAITING** (bottom) shows the PRs where the ball is in someone else's court as compact dark rows. Columns are grouped by repo. A blue dot marks any PR that changed in the latest poll.
 
+Draft PRs are dimmed. When you have any, a **Drafts: shown (N)** button appears in the header; click it to hide them from both lanes (and click again to bring them back). The choice is saved in `~/.claude/pr-watch/config.json`, so upgrades keep it. Drafts are shown by default because a draft can carry a real early-review request.
+
 The action chip on each your-turn card (**Review**, **Fix**, **Merge**, …, with a small Claude logo) opens that PR in Claude — see [Open in Claude](#open-in-claude).
 
 The dashboard updates live via Server-Sent Events — no page refresh needed. It is purely ambient: run `/pr-watch` in Claude for the full interactive inbox, or start `node poll.mjs` standalone and just watch the browser tab.

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.19.0 (2026-10-27)
+
+### Hide draft PRs
+
+Old PRs parked as drafts sat in **YOUR TURN** (a draft with no reviewers is the author's ball). A header button **Drafts: shown (N)** now hides all drafts from both lanes; it only appears when there are drafts (or while hiding is on). The choice is saved as `hideDrafts` in `~/.claude/pr-watch/config.json`, next to the Claude target, so upgrades don't reset it.
+
+- Shown by default: a draft can carry a real request (someone asks you for an early review), and hiding it silently would drop that.
+- Hiding is a view filter only: ball-in-court rules and `/pr-watch` events are unchanged.
+- `scripts/screenshot.mjs`: demo PRs can set `"draft": true`.
+
 ## 0.18.0 (2026-09-30)
 
 ### Open a PR in Claude from the dashboard

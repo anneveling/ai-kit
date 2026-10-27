@@ -123,6 +123,30 @@ function updateClaudeTargetToggle() {
     ". Click to switch. ⌥-click a chip to use the other one.";
 }
 
+// ── Drafts ───────────────────────────────────────────────────────────────────
+// Hide draft PRs (saved in config.json, so it survives upgrades). Off by default:
+// a draft can carry a real early-review request.
+let hideDrafts = false;
+async function setHideDrafts(on) {
+  hideDrafts = on;
+  render();
+  try {
+    await fetch("/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hideDrafts: on }),
+    });
+  } catch (err) { console.error("could not save drafts preference", err); }
+}
+function updateDraftsToggle(draftCount) {
+  const el = document.getElementById("drafts-toggle");
+  if (!el) return;
+  // Nothing to toggle without drafts, unless hiding is on (so it can be turned off).
+  el.hidden = draftCount === 0 && !hideDrafts;
+  el.textContent = (hideDrafts ? "Drafts: hidden" : "Drafts: shown") + " (" + draftCount + ")";
+  el.title = hideDrafts ? "Click to show draft PRs again" : "Click to hide draft PRs";
+}
+
 // Small popover anchored under a chip. `onAction(button)` handles clicks on
 // buttons carrying data-action; the popover closes afterwards.
 function showPopover(anchor, html, onAction) {
@@ -212,7 +236,10 @@ function applyPayload(payload) {
   repoPaths = payload.repoPaths || {};
   if (payload.reposScript) reposScript = payload.reposScript;
   if (payload.claudeTargets) detectedTarget = payload.claudeTargets.guess || null;
-  if (payload.config) claudeTarget = payload.config.claudeTarget || null;
+  if (payload.config) {
+    claudeTarget = payload.config.claudeTarget || null;
+    hideDrafts = payload.config.hideDrafts === true;
+  }
   updateClaudeTargetToggle();
   if (!GITHUB_USER) {
     document.body.innerHTML = '<pre style="padding:2rem;color:#e6edf3">pr-watch: viewer missing from payload. Is the poller signed in with `gh auth login`?</pre>';
@@ -251,7 +278,9 @@ function applyPayload(payload) {
 
 function render() {
   if (!lastPrs) return;
-  const prs = lastPrs;
+  const draftCount = lastPrs.filter((p) => p.isDraft).length;
+  updateDraftsToggle(draftCount);
+  const prs = hideDrafts ? lastPrs.filter((p) => !p.isDraft) : lastPrs;
   const bic = prs.filter(isBIC);
   const wait = prs.filter((p) => !isBIC(p));
 
@@ -467,6 +496,7 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("#claude-target")) {
     setClaudeTarget(getClaudeTarget() === "cli" ? "desktop" : "cli");
   }
+  if (e.target.closest("#drafts-toggle")) setHideDrafts(!hideDrafts);
 });
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closePopover(); });
 updateClaudeTargetToggle();

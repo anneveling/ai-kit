@@ -198,7 +198,7 @@ Emitted immediately before the process exits at stop time.
 |---|---|
 | `$STATE_DIR/state.json` | Full enriched PR data keyed by URL, used for change detection between polls |
 | `$STATE_DIR/current.json` | Versioned payload with current open PRs — read this to render the inbox |
-| `$STATE_DIR/config.json` | Dashboard preferences: `{ "claudeTarget": "desktop" \| "cli" }`, written by the dashboard via `POST /config` |
+| `$STATE_DIR/config.json` | Dashboard preferences: `{ "claudeTarget": "desktop" \| "cli", "hideDrafts": true }` (both optional), written by the dashboard via `POST /config` |
 | `$STATE_DIR/repos.json` | `{ "owner/name": "/abs/path" }` local clone overrides, written by `repos.mjs` — hand-editable |
 
 `current.json` has this envelope (schemaVersion is enforced by the dashboard):

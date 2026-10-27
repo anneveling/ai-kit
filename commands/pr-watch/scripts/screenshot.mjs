@@ -45,7 +45,7 @@ function expand(p) {
     repo: p.repo,
     role,
     author: { login: p.author },
-    isDraft: false,
+    isDraft: Boolean(p.draft),
     state: "OPEN",
     reviewDecision: p.reviewDecision || "",
     ciStatus: p.ci ?? ciSummary([]),

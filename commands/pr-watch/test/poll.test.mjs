@@ -1179,6 +1179,12 @@ test("sanitizeConfig: unknown target or garbage means 'not chosen yet'", () => {
   assert.deepEqual(sanitizeConfig("x"), {});
 });
 
+test("sanitizeConfig: hideDrafts kept only when true", () => {
+  assert.deepEqual(sanitizeConfig({ hideDrafts: true, claudeTarget: "cli" }), { claudeTarget: "cli", hideDrafts: true });
+  assert.deepEqual(sanitizeConfig({ hideDrafts: false }), {});
+  assert.deepEqual(sanitizeConfig({ hideDrafts: "yes" }), {});
+});
+
 test("guessClaudeTarget: desktop app wins, then the terminal handler", () => {
   assert.equal(guessClaudeTarget({ desktop: true, cli: true }), "desktop");
   assert.equal(guessClaudeTarget({ desktop: false, cli: true }), "cli");
