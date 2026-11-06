@@ -48,13 +48,43 @@ every session (CLAUDE.md)                    every few days (this skill)
 
 3. Run the first one yourself: `/retro`. Without a `retro-log` it looks back 7 days.
 
-Optional: if you keep a list of topics to discuss (a file or a page), name it in the Retros section and the retro goes through it first.
+## Make it yours: `~/.claude/retro.local.md`
+
+Your own extras go in `~/.claude/retro.local.md`, not in the skill, so you can update the skill without losing them. The retro reads that file first and follows it alongside its own steps. It costs nothing outside a retro, and the retro can propose changes to it like to any other instruction.
+
+Things people put in it:
+
+- **An inbox to go through first:** a file or page where you save links and loose thoughts during the week, and how to close each item afterwards.
+- **Parked items:** a list of things you decided not to do yet, to check for anything about how you work.
+- **Extra lenses:** a check for one kind of work you do a lot, such as code reviews, with its own script or questions.
+- **Which instructions to check:** your most-used skills and a word budget for each.
+- **Signals that matter in your work:** for example "a migration that ran before review" or "a customer reply sent without a second read".
+- **What not to touch:** files or sections the retro should never propose changes to.
+- **Where the history goes:** where to record why a change was made, if not in the retro conversation.
+
+An example:
+
+```markdown
+# My retro add-ons
+
+1. **Inbox first.** Go through `~/notes/retro-inbox.md`: one line per item, ask
+   "does this change how we work together?", then move each to "Discussed" with
+   the outcome.
+2. **Parked items.** Check `~/notes/parked.md` for anything about how we work.
+3. **Review lens.** Also count how often I asked "is there already a ticket for
+   this?" during code reviews, and propose a question for the review skill if
+   it keeps coming up.
+4. **Instruction check.** Also check `~/.claude/skills/review/SKILL.md`
+   (budget ~2,000 words).
+5. **Never propose** changes to the "Git Workflow" section of my CLAUDE.md.
+```
 
 ## Files
 
 | File | What |
 |---|---|
 | `SKILL.md` | The retro: window, signals to look for, instruction check, proposal format |
+| `~/.claude/retro.local.md` | Yours, optional: your own add-ons, see above. Not part of this folder. |
 | `scripts/sessions-since.py` | Prints your messages, Claude's replies and the noted, interrupt, rejection and walk-back markers since a date. Read-only, standard library only. |
 
 ## Privacy
