@@ -5,13 +5,14 @@ A Claude Code skill for a short retro on how you and Claude work together. Every
 ## Why it works
 
 - **Nothing to log.** Normal sessions don't write anything down. The transcripts Claude Code already keeps are the record, and the retro reads them.
-- **Claude offers it when it's due.** A few lines in your global `CLAUDE.md` let Claude notice friction while you work and offer a retro at a natural pause, at most every five days. A skill on its own can't do that, because it only loads when it's called.
+- **Claude says when something went wrong.** A few lines in your global `CLAUDE.md` let Claude notice friction while you work. At the end it says so in one line, for example "The plan changed three times before we agreed on scope. Noted for the next retro (due Monday), or we can do one now." It only pushes for a retro once one is due, at most every five days. A skill on its own can't do this, because it only loads when it's called. If you reply "that was fine", the note is dropped.
 - **Instructions stay short.** Each retro also checks your instructions: what never fires, what you keep overriding, what's said twice. Every rule it adds names one it replaces.
 - **Both sides.** It also tells you what you could do differently, with evidence, not only what Claude should change.
 
 ```
 every session (CLAUDE.md)                    every few days (this skill)
-  notice friction ─► offer a retro ──yes──►  read sessions since the last one
+  notice friction ─► "Noted for the next     read sessions since the last one,
+                      retro, or now" ──now──► starting from the noted lines
                                              → signals → patterns → proposals
                                              → you pick → edits → `ran:` updated
 ```
@@ -28,12 +29,16 @@ every session (CLAUDE.md)                    every few days (this skill)
 
    ```markdown
    ## Retros
-   Offer a short retro on *how* we work (one line, at a natural pause, never mid-task)
-   when you notice: I steered the same topic 2–3 times, a plan was reshaped more than
-   once, you explained something again, I said I'm confused, or you added machinery
-   I removed. Throttle: `~/.claude/retro-log` holds `ran:` and `offered:`; offer only
-   when `ran` is 5+ days ago and `offered` isn't today, and update `offered` when you
-   offer. Asking for one myself is never throttled. Run it with the `retro` skill.
+   When you notice friction (I steered the same topic 2–3 times, a plan was reshaped
+   more than once, you explained something again, I said I'm confused, or you added
+   machinery I removed), end with one line at a natural pause, never mid-task: what
+   went wrong as one concrete fact, whose it was ("I" or "we"), and when the next
+   retro is due, or offer one now. Example: "The plan changed three times before we
+   agreed on scope. Noted for the next retro (due Monday), or we can do one now."
+   If I say it was fine, drop it. Throttle: `~/.claude/retro-log` holds `ran:` and
+   `offered:`. The next retro is due 5 days after `ran`. Once it's due and `offered`
+   isn't today, suggest doing it now and update `offered`; before that, just mention
+   it. Asking for one myself is never throttled. Run it with the `retro` skill.
 
    ## How I like to work
    (Retros add to this section.)
@@ -48,7 +53,7 @@ Optional: if you keep a list of topics to discuss (a file or a page), name it in
 | File | What |
 |---|---|
 | `SKILL.md` | The retro: window, signals to look for, instruction check, proposal format |
-| `scripts/sessions-since.py` | Prints your messages, Claude's replies and the interrupt, rejection and walk-back markers since a date. Read-only, standard library only. |
+| `scripts/sessions-since.py` | Prints your messages, Claude's replies and the noted, interrupt, rejection and walk-back markers since a date. Read-only, standard library only. |
 
 ## Privacy
 

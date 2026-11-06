@@ -7,7 +7,8 @@ Usage:
   python3 -I sessions-since.py 2026-11-01 --claude 0      # your messages only
 
 Reads ~/.claude/projects/*/*.jsonl (read-only). Per session it prints what you typed, the start
-of the Claude reply you were answering, and the markers Claude Code records itself:
+of the Claude reply you were answering, and these markers:
+  [NOTED]      Claude flagged friction at the end of a reply ("Noted for the next retro…")
   [INTERRUPT]  you stopped Claude mid-turn
   [REJECTED]   you declined a tool call (with your reason, if you gave one)
   [WALK-BACK]  Claude took something back ("I overstated", "you're right, I ...")
@@ -22,6 +23,7 @@ WALKBACK = re.compile(
     r"|\bmy mistake\b|\bI misread\b",
     re.I,
 )
+NOTED = re.compile(r"\bnoted for the (?:next )?retro\b", re.I)
 INJECTED = ("<", "Caveat:", "Base directory for this skill", "Another Claude session",
             "This session is being continued")
 REJECTED = "The user doesn't want to proceed with this tool use"
@@ -67,6 +69,10 @@ def read_session(path, claude_chars):
             t = text_of(content).strip()
             if t:
                 last_reply = t
+                # The note is the reply's last paragraph; a mention elsewhere is talk about notes.
+                tail = t.rsplit("\n\n", 1)[-1]
+                if NOTED.search(tail):
+                    events.append((ts, "NOTED", short(tail, 300)))
                 # One per reply; skip quoted mentions ("I overstated" when talking about walk-backs).
                 for m in WALKBACK.finditer(t):
                     if t[max(0, m.start() - 1):m.start()] in ('"', "“", "'", "`"):
@@ -123,20 +129,20 @@ def main():
         if start and end >= a.since:
             sessions.append((start, project, title, events))
 
-    totals = {"YOU": 0, "INTERRUPT": 0, "REJECTED": 0, "WALK-BACK": 0}
+    totals = {"YOU": 0, "NOTED": 0, "INTERRUPT": 0, "REJECTED": 0, "WALK-BACK": 0}
     for start, project, title, events in sorted(sessions):
         counts = {k: sum(1 for _, kind, _ in events if kind == k) for k in totals}
         for k in totals:
             totals[k] += counts[k]
         name = re.sub(r"^-Users-[^-]+-", "", project)
         print(f"\n=== {start[:16].replace('T', ' ')} · {name}" + (f" · {title}" if title else ""))
-        print(f"    {counts['YOU']} messages · {counts['INTERRUPT']} interrupts · "
+        print(f"    {counts['YOU']} messages · {counts['NOTED']} noted · {counts['INTERRUPT']} interrupts · "
               f"{counts['REJECTED']} rejected · {counts['WALK-BACK']} walk-backs")
         for ts, kind, body in events:
             label = {"YOU": "you", "CLAUDE": "  claude"}.get(kind, f"[{kind}]")
             print(f"{ts[11:16]} {label}: {body}" if body else f"{ts[11:16]} {label}")
 
-    print(f"\n{len(sessions)} sessions since {a.since}: {totals['YOU']} messages, "
+    print(f"\n{len(sessions)} sessions since {a.since}: {totals['YOU']} messages, {totals['NOTED']} noted, "
           f"{totals['INTERRUPT']} interrupts, {totals['REJECTED']} rejected tool calls, "
           f"{totals['WALK-BACK']} walk-backs")
 

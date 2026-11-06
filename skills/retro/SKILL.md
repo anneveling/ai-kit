@@ -28,7 +28,7 @@ Read `~/.claude/retro-log` (lines `ran: YYYY-MM-DD` and `offered: YYYY-MM-DD`). 
 python3 -I ~/.claude/skills/retro/scripts/sessions-since.py <ran date> > <scratchpad>/retro-sessions.txt
 ```
 
-The script prints, per session: what the user typed, the start of the Claude reply they were answering, and markers Claude Code records itself: `[INTERRUPT]`, `[REJECTED]` (a declined tool call, with the reason if one was given) and `[WALK-BACK]` (Claude taking something back). The last line has the totals. It leaves out injected text, so a word like "confused" in an instruction file doesn't count as the user saying it.
+The script prints, per session: what the user typed, the start of the Claude reply they were answering, and markers: `[NOTED]` (Claude flagged friction at the end of a reply, under the "Retros" rule in `CLAUDE.md`), `[INTERRUPT]`, `[REJECTED]` (a declined tool call, with the reason if one was given) and `[WALK-BACK]` (Claude taking something back). The last line has the totals. Start from the `[NOTED]` lines. Skip one the user waved off ("that was fine"), and look for friction that went unnoted too. It leaves out injected text, so a word like "confused" in an instruction file doesn't count as the user saying it.
 
 The output is long. Read the `===` header lines and their counts first, then read the sessions where markers or short pushbacks cluster in full. `--claude 0` shows the user's messages only, and `--project <text>` narrows it to some projects. For more of an exchange, rerun with `--project` and a larger `--claude`. Never open the raw `.jsonl` files: they're mostly tool output and run to millions of tokens.
 
@@ -80,7 +80,7 @@ Instructions that load in every session (global and repo `CLAUDE.md`) cost somet
 
 Open with one question: "What stood out for you since last time?" Then share what you found, short and in this order:
 
-1. **Counts** next to the previous retro's: sessions, interrupts, rejected calls, walk-backs (and how many of those were caving), confused-then-approved moments.
+1. **Counts** next to the previous retro's: sessions, noted, interrupts, rejected calls, walk-backs (and how many of those were caving), confused-then-approved moments.
 2. **What worked** (up to 3).
 3. **What Claude could do better** (up to 3).
 4. **What you could try** (up to 3).
