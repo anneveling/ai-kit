@@ -22,4 +22,4 @@ Monitor pull request status across one or more GitHub repositories. Polls for st
 
 ### [retro](skills/retro/)
 
-A short retro on how you and Claude work together. Every few days it reads your past sessions, spots friction (confusion, back-and-forth, wrong assumptions, rework) and proposes changes to Claude's instructions and to your own habits. Claude offers it when it's due. Invoke with `/retro`.
+A short retro between you and Claude (not a team retrospective) on how the two of you work together. Every few days it reads your past sessions, spots friction (confusion, back-and-forth, wrong assumptions, rework) and proposes changes to Claude's instructions and to your own habits. Claude offers it when it's due. Invoke with `/retro`.

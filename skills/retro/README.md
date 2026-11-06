@@ -2,6 +2,8 @@
 
 A Claude Code skill for a short retro on how you and Claude work together. Every few days it reads your past sessions, finds where things got bumpy (confusion, back-and-forth, wrong assumptions, rework, interrupts), and proposes small changes to Claude's instructions and skills, plus habits you could try yourself. You pick what to adopt, and only then does it change anything.
 
+It's a retro between you and Claude, not a team retrospective. It looks at your sessions with Claude only, not at how your team works. Asking Claude to help prepare your team's sprint retro won't trigger it.
+
 ## Why it works
 
 - **Nothing to log.** Normal sessions don't write anything down. The transcripts Claude Code already keeps are the record, and the retro reads them.

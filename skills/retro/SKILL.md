@@ -1,13 +1,13 @@
 ---
 name: retro
-description: A short retro on how the user and Claude work together, covering every session since the last one. Reads the transcripts, spots friction (confusion, back-and-forth, wrong assumptions, rework, interrupts), groups it into patterns and proposes concrete changes to CLAUDE.md, skills and memory, plus habits the user could try. Use when the user asks for a retro, a look back, lessons learned on how we work, or "what should we change", and when running a retro offered under the "Retros" rule in CLAUDE.md.
+description: A short retro between the user and Claude on how the two of them work together, covering every session since the last one. Reads the transcripts, spots friction (confusion, back-and-forth, wrong assumptions, rework, interrupts), groups it into patterns and proposes concrete changes to CLAUDE.md, skills and memory, plus habits the user could try. Use when the user asks for a retro with Claude, a look back at our sessions, lessons learned on how we work together, or "what should we change", and when running a retro offered under the "Retros" rule in CLAUDE.md. Not for a team or sprint retrospective with colleagues: for preparing or running one of those, help directly without this skill.
 ---
 
 <!-- version: 0.1.0 | source: https://github.com/anneveling/ai-kit/tree/main/skills/retro -->
 
 # Retro
 
-A retro on *how we work*, not on what got built. It looks back over every session since the last retro, finds where the collaboration cost time or trust, and proposes small changes to Claude's instructions and to the user's habits. Nothing gets saved during normal sessions: the transcripts already hold everything, and this skill reads them.
+A retro between the user and Claude on *how the two of them work together*, not on what got built. It is not a team retrospective: colleagues come up only as context the user had or didn't give. It looks back over every session since the last retro, finds where the collaboration cost time or trust, and proposes small changes to Claude's instructions and to the user's habits. Nothing gets saved during normal sessions: the transcripts already hold everything, and this skill reads them.
 
 ## Rules
 
