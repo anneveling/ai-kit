@@ -3,7 +3,7 @@ name: retro
 description: A short retro between the user and Claude on how the two of them work together, covering every session since the last one. Reads the transcripts, spots friction (confusion, back-and-forth, wrong assumptions, rework, interrupts), groups it into patterns and proposes concrete changes to CLAUDE.md, skills and memory, plus habits the user could try. Use when the user asks for a retro with Claude, a look back at our sessions, lessons learned on how we work together, or "what should we change", and when running a retro offered under the "Retros" rule in CLAUDE.md. Not for a team or sprint retrospective with colleagues: for preparing or running one of those, help directly without this skill.
 ---
 
-<!-- version: 0.1.0 | source: https://github.com/anneveling/ai-kit/tree/main/skills/retro -->
+<!-- version: 0.2.0 | source: https://github.com/anneveling/ai-kit/tree/main/skills/retro -->
 
 # Retro
 
@@ -17,6 +17,10 @@ A retro between the user and Claude on *how the two of them work together*, not 
 4. **Both sides.** Be as direct about what the user could do differently as about Claude. A retro that only finds Claude's mistakes is half a retro. Phrase the user's side as something to try, with the evidence.
 5. **System cause first.** Before blaming anyone, look for what made the mistake easy: missing context, an unclear or conflicting rule, a missing tool. "Be more careful" is not a proposal.
 6. **Remove before you add.** Every rule you propose names what it replaces or removes. Instructions only work if they stay short.
+
+## Your own add-ons
+
+If `~/.claude/retro.local.md` exists, read it before step 1 and follow it alongside these steps. It holds the user's own extras: an inbox to go through, extra checks, which files to look at. Where it's more specific than this skill, it wins. A change to how this user's retro runs goes there, not into this skill.
 
 ## 1. Set the window
 
@@ -32,10 +36,7 @@ The script prints, per session: what the user typed, the start of the Claude rep
 
 The output is long. Read the `===` header lines and their counts first, then read the sessions where markers or short pushbacks cluster in full. `--claude 0` shows the user's messages only, and `--project <text>` narrows it to some projects. For more of an exchange, rerun with `--project` and a larger `--claude`. Never open the raw `.jsonl` files: they're mostly tool output and run to millions of tokens.
 
-Also gather, if they exist:
-- **The previous retro**, usually the first session in the window: what it changed, and the counts it reported.
-- **An inbox** of topics the user saved for the retro, if their CLAUDE.md names one.
-- **Parked items** (a `DEFERRED.md` or similar) that touch how we work.
+Also read **the previous retro**, usually the first session in the window: what it changed, and the counts it reported.
 
 ## 3. Look for these signals
 
@@ -101,6 +102,7 @@ Where lessons land:
 - A fact about the user or a project → memory.
 - Something the user does → a habit to try. No file, unless they want one.
 - Something a tool can enforce → a lint rule, test or hook.
+- How the retro itself runs, for this user → `~/.claude/retro.local.md`.
 - A one-off → don't codify.
 
 ## 6. Apply
