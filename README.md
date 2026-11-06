@@ -17,3 +17,9 @@ Each item lives in its own subfolder with a README covering what it does, how to
 ### [pr-watch](commands/pr-watch/)
 
 Monitor pull request status across one or more GitHub repositories. Polls for status changes and surfaces review events, CI results, and merge readiness.
+
+## Skills
+
+### [panel](skills/panel/)
+
+Put a big question to a panel of independent voices: each researches alone, then they attack, concede and update in a crossfire, and a scribe checks the load-bearing sources. Ends in a three-layer page. Invoke with `/panel`.
