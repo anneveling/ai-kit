@@ -17,3 +17,9 @@ Each item lives in its own subfolder with a README covering what it does, how to
 ### [pr-watch](commands/pr-watch/)
 
 Monitor pull request status across one or more GitHub repositories. Polls for status changes and surfaces review events, CI results, and merge readiness.
+
+## Skills
+
+### [retro](skills/retro/)
+
+A short retro on how you and Claude work together. Every few days it reads your past sessions, spots friction (confusion, back-and-forth, wrong assumptions, rework) and proposes changes to Claude's instructions and to your own habits. Claude offers it when it's due. Invoke with `/retro`.
