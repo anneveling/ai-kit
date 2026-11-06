@@ -15,7 +15,8 @@ A retro on *how we work*, not on what got built. It looks back over every sessio
 2. **Patterns, not incidents.** A lesson needs at least two sessions showing it, or one moment that was costly (lost work, a wrong thing posted, trust lost). Leave one-offs out.
 3. **Evidence for everything.** Every lesson names the session and date and quotes one line. If you can't point to it, it's a hunch: say so or drop it.
 4. **Both sides.** Be as direct about what the user could do differently as about Claude. A retro that only finds Claude's mistakes is half a retro. Phrase the user's side as something to try, with the evidence.
-5. **Remove before you add.** Every rule you propose names what it replaces or removes. Instructions only work if they stay short.
+5. **System cause first.** Before blaming anyone, look for what made the mistake easy: missing context, an unclear or conflicting rule, a missing tool. "Be more careful" is not a proposal.
+6. **Remove before you add.** Every rule you propose names what it replaces or removes. Instructions only work if they stay short.
 
 ## 1. Set the window
 
@@ -29,7 +30,7 @@ python3 -I ~/.claude/skills/retro/scripts/sessions-since.py <ran date> > <scratc
 
 The script prints, per session: what the user typed, the start of the Claude reply they were answering, and markers Claude Code records itself: `[INTERRUPT]`, `[REJECTED]` (a declined tool call, with the reason if one was given) and `[WALK-BACK]` (Claude taking something back). The last line has the totals. It leaves out injected text, so a word like "confused" in an instruction file doesn't count as the user saying it.
 
-The output is long. Read the `===` header lines and their counts first, then read the sessions where markers or short pushbacks cluster in full. `--claude 0` shows the user's messages only, and `--project <text>` narrows it to some projects.
+The output is long. Read the `===` header lines and their counts first, then read the sessions where markers or short pushbacks cluster in full. `--claude 0` shows the user's messages only, and `--project <text>` narrows it to some projects. For more of an exchange, rerun with `--project` and a larger `--claude`. Never open the raw `.jsonl` files: they're mostly tool output and run to millions of tokens.
 
 Also gather, if they exist:
 - **The previous retro**, usually the first session in the window: what it changed, and the counts it reported.
@@ -41,10 +42,14 @@ Also gather, if they exist:
 | Signal | What it looks like | Usually means |
 |---|---|---|
 | **Interrupts, rejected tool calls** | `[INTERRUPT]`, `[REJECTED]` | Claude ran ahead, or picked the wrong action or scope |
-| **Confusion** | "I'm confused", "what do you mean", "so many X", the same question twice, a one-word "?" | The point came after the detail, or a term the user never used |
+| **Confusion or frustration** | "I'm confused", "what do you mean", "so many X", the same question twice, a one-word "?", replies getting shorter and sharper, "again", "just do X" | The point came after the detail, a term the user never used, or Claude not listening |
 | **Back-and-forth** | The same topic steered 3+ times, a plan reshaped more than once, "no, I meant…" | The goal, scope or "done when" wasn't pinned down at the start |
-| **Wrong assumptions** | `[WALK-BACK]`, or the user supplies a fact Claude could have looked up | A claim rested on something unchecked |
+| **Wrong assumptions** | `[WALK-BACK]` with a new fact behind it, or the user supplies a fact Claude could have looked up | A claim rested on something unchecked |
+| **Caving** | `[WALK-BACK]` or a changed position after pushback, with no new fact, file or source behind the change | Claude agreeing rather than checking. Worse than the original mistake, because it hides who was right |
+| **"Done" that wasn't** | Claude said done, fixed or working, then the user found it broken, incomplete or untested | Claimed without verifying |
+| **Telling it again** | The user explains the same background, preference or constraint in two or more sessions | A memory or `CLAUDE.md` gap |
 | **Over- or under-asking** | Claude asked what the code or docs would have answered, or built the wrong thing without asking | The bar for asking versus acting is off |
+| **Wrong one doing the work** | The user did mechanical work Claude could have done (copy-pasting, relaying between sessions, running commands), or Claude made a call that was the user's | The split of work is off |
 | **Machinery creep** | Claude adds a file, flag, step or abstraction, and the user removes it | Thorough was mistaken for better |
 | **Rework** | The same intent edited several times, a revert, a task abandoned partway | Building started before agreeing on what |
 | **Explanation misses** | A long answer followed by "tl;dr" or a short question that should have been answered first | Wrong order or wrong level |
@@ -65,6 +70,7 @@ These are prompts, not a checklist to fill in. Report what the transcripts show.
 Instructions that load in every session (global and repo `CLAUDE.md`) cost something every time, so they should be short. Skills load only when used, so detail belongs there. Check the global `CLAUDE.md` (aim for under ~1,500 words; measure with `wc -w`) and the skills used most in the window:
 
 - **Did it fire?** Look in Claude's own output in the transcripts, not in the instruction text. A rule that hasn't fired in weeks: shorten it, or ask whether it's still needed.
+- **Should it have fired and didn't?** A rule covered the situation and Claude ignored it: the rule is in the wrong place, too vague, or buried.
 - **Did the user override it?** A rule the user keeps correcting is wrong or out of date.
 - **Duplicates and conflicts:** say it once, in the place that loads when it's needed.
 - **History stays out:** why a rule exists belongs in the retro conversation, which the next retro can read, not in the instruction.
@@ -74,13 +80,13 @@ Instructions that load in every session (global and repo `CLAUDE.md`) cost somet
 
 Open with one question: "What stood out for you since last time?" Then share what you found, short and in this order:
 
-1. **Counts** next to the previous retro's: sessions, interrupts, rejected calls, walk-backs, confused-then-approved moments.
+1. **Counts** next to the previous retro's: sessions, interrupts, rejected calls, walk-backs (and how many of those were caving), confused-then-approved moments.
 2. **What worked** (up to 3).
 3. **What Claude could do better** (up to 3).
 4. **What you could try** (up to 3).
 5. **Instruction check:** what to cut, merge or move.
 
-Then the proposals, one block each:
+Then the proposals, one block each. Mark the 1–3 you'd adopt first: more than that doesn't stick, and the next retro checks whether they worked.
 
 > **Lesson:** one sentence.
 > **Evidence:** session, date, one quoted line (two sessions where you can).
