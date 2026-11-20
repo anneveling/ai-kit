@@ -1,0 +1,817 @@
+{
+ "_about": "Made-up topics for `npm run demo` and screenshots. Times are relative to `now` (local, fixed), so the pages read the same every time. `me` is you.",
+ "now": "2026-11-19T11:05",
+ "config": {
+  "areas": [
+   "Acme",
+   "Side project",
+   "Personal"
+  ]
+ },
+ "people": [
+  {
+   "id": "sam",
+   "name": "Sam"
+  },
+  {
+   "id": "toby",
+   "name": "Toby"
+  },
+  {
+   "id": "maya",
+   "name": "Maya"
+  },
+  {
+   "id": "wren",
+   "name": "Wren"
+  },
+  {
+   "id": "jo",
+   "name": "Jo"
+  },
+  {
+   "id": "shop",
+   "name": "the shop"
+  }
+ ],
+ "items": [
+  {
+   "id": "linear:AC-1630",
+   "source": "linear",
+   "kind": "story",
+   "title": "Ledger entries for payouts",
+   "status": {
+    "label": "done",
+    "tone": "done"
+   },
+   "assessment": {
+    "ball": [],
+    "state": "quiet",
+    "since": "-1d2h",
+    "line": "AC-1630 is done"
+   },
+   "storyKey": "AC-1630",
+   "area": "Acme",
+   "where": "Payouts v2",
+   "context": "Project Payouts v2 · milestone Go-live 12 Dec · 62%",
+   "url": "https://linear.app/acme/issue/AC-1630"
+  },
+  {
+   "id": "linear:AC-1631",
+   "source": "linear",
+   "kind": "story",
+   "title": "Payout webhooks",
+   "status": {
+    "label": "done",
+    "tone": "done"
+   },
+   "assessment": {
+    "ball": [],
+    "state": "quiet",
+    "since": "-1d2h",
+    "line": "AC-1631 is done"
+   },
+   "storyKey": "AC-1631",
+   "area": "Acme",
+   "where": "Payouts v2",
+   "context": "Project Payouts v2 · milestone Go-live 12 Dec · 62%",
+   "url": "https://linear.app/acme/issue/AC-1631"
+  },
+  {
+   "id": "linear:AC-1636",
+   "source": "linear",
+   "kind": "story",
+   "title": "Payout retries",
+   "status": {
+    "label": "in review",
+    "tone": "active"
+   },
+   "assessment": {
+    "ball": [],
+    "state": "quiet",
+    "since": "-2h",
+    "line": "AC-1636 is in review"
+   },
+   "storyKey": "AC-1636",
+   "area": "Acme",
+   "where": "Payouts v2",
+   "context": "Project Payouts v2 · milestone Go-live 12 Dec · 62%",
+   "url": "https://linear.app/acme/issue/AC-1636"
+  },
+  {
+   "id": "linear:AC-1640",
+   "source": "linear",
+   "kind": "story",
+   "title": "Payout statement email",
+   "status": {
+    "label": "todo",
+    "tone": "idle"
+   },
+   "assessment": {
+    "ball": [],
+    "state": "quiet",
+    "since": "-3d",
+    "line": "AC-1640 is to do"
+   },
+   "storyKey": "AC-1640",
+   "area": "Acme",
+   "where": "Payouts v2",
+   "context": "Project Payouts v2 · milestone Go-live 12 Dec · 62%",
+   "url": "https://linear.app/acme/issue/AC-1640"
+  },
+  {
+   "id": "github:acme/payments#801",
+   "source": "github",
+   "kind": "pr",
+   "title": "#801 Ledger entries",
+   "status": {
+    "label": "merged",
+    "tone": "done"
+   },
+   "assessment": {
+    "ball": [],
+    "state": "quiet",
+    "since": "-1d1h",
+    "line": "#801 merged"
+   },
+   "storyKey": "AC-1630",
+   "area": "Acme",
+   "where": "acme/payments",
+   "url": "https://github.com/acme/payments/pull/801"
+  },
+  {
+   "id": "github:acme/payments#805",
+   "source": "github",
+   "kind": "pr",
+   "title": "#805 Webhook signatures",
+   "status": {
+    "label": "merged",
+    "tone": "done"
+   },
+   "assessment": {
+    "ball": [],
+    "state": "quiet",
+    "since": "-1d1h",
+    "line": "#805 merged"
+   },
+   "storyKey": "AC-1631",
+   "area": "Acme",
+   "where": "acme/payments",
+   "url": "https://github.com/acme/payments/pull/805"
+  },
+  {
+   "id": "github:acme/payments#809",
+   "source": "github",
+   "kind": "pr",
+   "title": "#809 Webhook retries table",
+   "status": {
+    "label": "merged",
+    "tone": "done"
+   },
+   "assessment": {
+    "ball": [],
+    "state": "quiet",
+    "since": "-1d2h",
+    "line": "#809 merged"
+   },
+   "storyKey": "AC-1631",
+   "area": "Acme",
+   "where": "acme/payments",
+   "url": "https://github.com/acme/payments/pull/809"
+  },
+  {
+   "id": "github:acme/payments#812",
+   "source": "github",
+   "kind": "pr",
+   "title": "#812 Retry failed payouts with backoff",
+   "status": {
+    "label": "CI ✗",
+    "tone": "attention"
+   },
+   "assessment": {
+    "ball": [
+     "me"
+    ],
+    "state": "your_move",
+    "since": "-23m",
+    "line": "CI failed on #812 after Toby approved it",
+    "stuck": "ci_red_approved",
+    "next": {
+     "verb": "fix",
+     "label": "Fix CI on #812",
+     "reason": "payout.spec.ts › retries after timeout failed",
+     "officer": "Claude fixes it",
+     "helm": "you fix it"
+    }
+   },
+   "storyKey": "AC-1636",
+   "area": "Acme",
+   "where": "acme/payments",
+   "url": "https://github.com/acme/payments/pull/812"
+  },
+  {
+   "id": "github:acme/payments#835",
+   "source": "github",
+   "kind": "pr",
+   "title": "#835 Webhooks v2",
+   "status": {
+    "label": "with Toby",
+    "tone": "active"
+   },
+   "assessment": {
+    "ball": [
+     "toby"
+    ],
+    "state": "waiting",
+    "since": "-5h",
+    "line": "#835 is with Toby for review"
+   },
+   "storyKey": "AC-1631",
+   "area": "Acme",
+   "where": "acme/payments",
+   "url": "https://github.com/acme/payments/pull/835"
+  },
+  {
+   "id": "slack:C0PAY/1763540000.000100",
+   "source": "slack",
+   "kind": "thread",
+   "title": "#payments · Sam",
+   "status": {
+    "label": "question to you",
+    "tone": "attention"
+   },
+   "assessment": {
+    "ball": [
+     "me"
+    ],
+    "state": "your_move",
+    "since": "-10m",
+    "line": "Sam asks in #payments whether it can ship today",
+    "stuck": "question",
+    "next": {
+     "verb": "reply",
+     "label": "Answer Sam: ship today?",
+     "officer": "Claude drafts the reply",
+     "helm": "write it with Claude"
+    }
+   },
+   "storyKey": "AC-1636",
+   "area": "Acme",
+   "where": "#payments"
+  },
+  {
+   "id": "slack:C0SEL/1763460000.000200",
+   "source": "slack",
+   "kind": "thread",
+   "title": "#sellers · Wren",
+   "status": {
+    "label": "waiting 1d",
+    "tone": "idle"
+   },
+   "assessment": {
+    "ball": [
+     "wren"
+    ],
+    "state": "waiting",
+    "since": "-20h",
+    "line": "Wren hasn't answered your KYC question in #sellers",
+    "next": {
+     "verb": "nudge",
+     "label": "Nudge Wren about the KYC step",
+     "helm": "write it with Claude",
+     "officer": "Claude drafts the nudge"
+    }
+   },
+   "storyKey": "AC-1640",
+   "area": "Acme",
+   "where": "#sellers"
+  },
+  {
+   "id": "notion:task-retry-metrics",
+   "source": "notion",
+   "kind": "task",
+   "title": "Check retry metrics after release",
+   "status": {
+    "label": "Fri",
+    "tone": "idle"
+   },
+   "assessment": {
+    "ball": [],
+    "state": "quiet",
+    "since": "-1d3h",
+    "line": "Check retry metrics after release, on Friday"
+   },
+   "storyKey": "AC-1636",
+   "area": "Acme",
+   "where": "Next actions"
+  },
+  {
+   "id": "linear:AC-1702",
+   "source": "linear",
+   "kind": "story",
+   "title": "Photo review queue",
+   "status": {
+    "label": "in progress",
+    "tone": "active"
+   },
+   "assessment": {
+    "ball": [],
+    "state": "quiet",
+    "since": "-2d",
+    "line": "AC-1702 is in progress"
+   },
+   "storyKey": "AC-1702",
+   "area": "Acme",
+   "where": "Catalog",
+   "url": "https://linear.app/acme/issue/AC-1702"
+  },
+  {
+   "id": "github:acme/web#830",
+   "source": "github",
+   "kind": "pr",
+   "title": "#830 Photo review: bulk approve",
+   "status": {
+    "label": "your review",
+    "tone": "attention"
+   },
+   "assessment": {
+    "ball": [
+     "me"
+    ],
+    "state": "your_move",
+    "since": "-3h",
+    "line": "Maya asked your review on #830",
+    "next": {
+     "verb": "review",
+     "label": "Review #830 for Maya",
+     "officer": "Claude reviews it first",
+     "helm": "you review it"
+    }
+   },
+   "storyKey": "AC-1702",
+   "area": "Acme",
+   "where": "acme/web",
+   "url": "https://github.com/acme/web/pull/830"
+  },
+  {
+   "id": "linear:AC-1710",
+   "source": "linear",
+   "kind": "story",
+   "title": "Shipping rates per region",
+   "status": {
+    "label": "in review",
+    "tone": "active"
+   },
+   "assessment": {
+    "ball": [],
+    "state": "quiet",
+    "since": "-1d",
+    "line": "AC-1710 is in review"
+   },
+   "storyKey": "AC-1710",
+   "area": "Acme",
+   "where": "Checkout",
+   "url": "https://linear.app/acme/issue/AC-1710"
+  },
+  {
+   "id": "github:acme/web#799",
+   "source": "github",
+   "kind": "pr",
+   "title": "#799 Shipping rates per region",
+   "status": {
+    "label": "CI running",
+    "tone": "active"
+   },
+   "assessment": {
+    "ball": [
+     "ci"
+    ],
+    "state": "in_motion",
+    "since": "-5m",
+    "line": "CI running for #799"
+   },
+   "storyKey": "AC-1710",
+   "area": "Acme",
+   "where": "acme/web",
+   "url": "https://github.com/acme/web/pull/799"
+  },
+  {
+   "id": "linear:AC-1688",
+   "source": "linear",
+   "kind": "story",
+   "title": "Seller onboarding checklist",
+   "status": {
+    "label": "in progress",
+    "tone": "active"
+   },
+   "assessment": {
+    "ball": [],
+    "state": "quiet",
+    "since": "-2d",
+    "line": "AC-1688 is in progress"
+   },
+   "storyKey": "AC-1688",
+   "area": "Acme",
+   "where": "Sellers",
+   "url": "https://linear.app/acme/issue/AC-1688"
+  },
+  {
+   "id": "github:acme/web#790",
+   "source": "github",
+   "kind": "pr",
+   "title": "#790 Onboarding checklist UI",
+   "status": {
+    "label": "with Toby",
+    "tone": "active"
+   },
+   "assessment": {
+    "ball": [
+     "toby"
+    ],
+    "state": "waiting",
+    "since": "-1d",
+    "line": "#790 is with Toby for review"
+   },
+   "storyKey": "AC-1688",
+   "area": "Acme",
+   "where": "acme/web",
+   "url": "https://github.com/acme/web/pull/790"
+  },
+  {
+   "id": "notion:task-readme",
+   "source": "notion",
+   "kind": "task",
+   "title": "Write the bridge README",
+   "status": {
+    "label": "no date",
+    "tone": "idle"
+   },
+   "assessment": {
+    "ball": [],
+    "state": "quiet",
+    "since": "-2d",
+    "line": "README still to write"
+   },
+   "area": "Side project",
+   "where": "Next actions"
+  },
+  {
+   "id": "notion:task-tax",
+   "source": "notion",
+   "kind": "task",
+   "title": "OK the tax return draft",
+   "status": {
+    "label": "overdue",
+    "tone": "attention"
+   },
+   "assessment": {
+    "ball": [
+     "me"
+    ],
+    "state": "your_move",
+    "since": "-1d",
+    "line": "The accountant's draft needs your OK; it was due yesterday",
+    "stuck": "overdue",
+    "next": {
+     "verb": "do",
+     "label": "OK the tax return draft",
+     "helm": "go through it with Claude"
+    }
+   },
+   "area": "Personal",
+   "where": "Next actions"
+  },
+  {
+   "id": "notion:task-bike",
+   "source": "notion",
+   "kind": "task",
+   "title": "Bike back from the shop",
+   "status": {
+    "label": "waiting 4d",
+    "tone": "idle"
+   },
+   "assessment": {
+    "ball": [
+     "shop"
+    ],
+    "state": "waiting",
+    "since": "-4d",
+    "line": "Waiting on the shop",
+    "next": {
+     "verb": "nudge",
+     "label": "Call the shop"
+    }
+   },
+   "area": "Personal",
+   "where": "Waiting for"
+  },
+  {
+   "id": "slack:D0JO/1763550000.000300",
+   "source": "slack",
+   "kind": "thread",
+   "title": "DM from Jo",
+   "status": {
+    "label": "to you",
+    "tone": "attention"
+   },
+   "assessment": {
+    "ball": [
+     "me"
+    ],
+    "state": "your_move",
+    "since": "-10m",
+    "line": "Jo: “quick q about seller onboarding”",
+    "stuck": "question",
+    "next": {
+     "verb": "reply",
+     "label": "Answer Jo",
+     "officer": "Claude drafts the reply",
+     "helm": "write it with Claude"
+    }
+   },
+   "area": "Acme",
+   "where": "DM"
+  }
+ ],
+ "events": [
+  {
+   "id": "e1",
+   "itemId": "slack:C0PAY/1763540000.000100",
+   "source": "slack",
+   "at": "-10m",
+   "who": "sam",
+   "text": "in #payments: “can we ship today?”"
+  },
+  {
+   "id": "e2",
+   "itemId": "github:acme/payments#812",
+   "source": "github",
+   "at": "-23m",
+   "who": "ci",
+   "text": "#812 failed: payout.spec.ts › retries after timeout",
+   "tone": "bad"
+  },
+  {
+   "id": "e3",
+   "itemId": "github:acme/payments#812",
+   "source": "github",
+   "at": "-1h55m",
+   "who": "toby",
+   "text": "approved #812",
+   "tone": "good"
+  },
+  {
+   "id": "e4",
+   "itemId": "github:acme/payments#812",
+   "source": "github",
+   "at": "-2h10m",
+   "who": "me",
+   "text": "pushed 2 commits to #812"
+  },
+  {
+   "id": "e5",
+   "itemId": "github:acme/payments#835",
+   "source": "github",
+   "at": "-5h",
+   "who": "me",
+   "text": "asked Toby to review #835"
+  },
+  {
+   "id": "e6",
+   "itemId": "github:acme/payments#801",
+   "source": "github",
+   "at": "-1d1h",
+   "who": "me",
+   "text": "merged #801",
+   "routine": true
+  },
+  {
+   "id": "e7",
+   "itemId": "github:acme/payments#805",
+   "source": "github",
+   "at": "-1d1h5m",
+   "who": "me",
+   "text": "merged #805",
+   "routine": true
+  },
+  {
+   "id": "e8",
+   "itemId": "github:acme/payments#809",
+   "source": "github",
+   "at": "-1d2h",
+   "who": "me",
+   "text": "merged #809",
+   "routine": true
+  },
+  {
+   "id": "e9",
+   "itemId": "linear:AC-1630",
+   "source": "linear",
+   "at": "-1d2h",
+   "who": "me",
+   "text": "AC-1630 → Done",
+   "routine": true
+  },
+  {
+   "id": "e10",
+   "itemId": "linear:AC-1631",
+   "source": "linear",
+   "at": "-1d2h",
+   "who": "me",
+   "text": "AC-1631 → Done",
+   "routine": true
+  },
+  {
+   "id": "e11",
+   "itemId": "slack:C0SEL/1763460000.000200",
+   "source": "slack",
+   "at": "-20h",
+   "who": "me",
+   "text": "in #sellers: “who owns the KYC step?”"
+  },
+  {
+   "id": "e12",
+   "itemId": "notion:task-retry-metrics",
+   "source": "notion",
+   "at": "-1d3h",
+   "who": "me",
+   "text": "added “Check retry metrics after release”"
+  },
+  {
+   "id": "e13",
+   "itemId": "linear:AC-1636",
+   "source": "linear",
+   "at": "-3d",
+   "who": "sam",
+   "text": "commented on AC-1636: “retries should stop after 3”"
+  },
+  {
+   "id": "e14",
+   "itemId": "github:acme/web#830",
+   "source": "github",
+   "at": "-3h",
+   "who": "maya",
+   "text": "asked your review on #830"
+  },
+  {
+   "id": "e15",
+   "itemId": "github:acme/web#830",
+   "source": "github",
+   "at": "-3h10m",
+   "who": "maya",
+   "text": "opened #830"
+  },
+  {
+   "id": "e16",
+   "itemId": "github:acme/web#799",
+   "source": "github",
+   "at": "-5m",
+   "who": "ci",
+   "text": "CI started on #799"
+  },
+  {
+   "id": "e17",
+   "itemId": "github:acme/web#799",
+   "source": "github",
+   "at": "-6m",
+   "who": "me",
+   "text": "pushed to #799"
+  },
+  {
+   "id": "e18",
+   "itemId": "github:acme/web#790",
+   "source": "github",
+   "at": "-1d",
+   "who": "me",
+   "text": "asked Toby to review #790"
+  },
+  {
+   "id": "e19",
+   "itemId": "notion:task-tax",
+   "source": "notion",
+   "at": "-6d",
+   "who": "me",
+   "text": "added “OK the tax return draft”, due yesterday"
+  },
+  {
+   "id": "e20",
+   "itemId": "notion:task-bike",
+   "source": "notion",
+   "at": "-4d",
+   "who": "me",
+   "text": "waiting for the bike from the shop"
+  },
+  {
+   "id": "e21",
+   "itemId": "slack:D0JO/1763550000.000300",
+   "source": "slack",
+   "at": "-10m",
+   "who": "jo",
+   "text": "“quick q about seller onboarding”"
+  },
+  {
+   "id": "e22",
+   "itemId": "notion:task-readme",
+   "source": "notion",
+   "at": "-2d",
+   "who": "me",
+   "text": "added “Write the bridge README”"
+  }
+ ],
+ "decisions": [
+  {
+   "kind": "new_topic",
+   "id": "payouts",
+   "name": "Payouts v2",
+   "at": "-7d"
+  },
+  {
+   "kind": "merge",
+   "from": "story:AC-1630",
+   "into": "payouts",
+   "at": "-7d"
+  },
+  {
+   "kind": "merge",
+   "from": "story:AC-1631",
+   "into": "payouts",
+   "at": "-7d"
+  },
+  {
+   "kind": "merge",
+   "from": "story:AC-1636",
+   "into": "payouts",
+   "at": "-7d"
+  },
+  {
+   "kind": "merge",
+   "from": "story:AC-1640",
+   "into": "payouts",
+   "at": "-7d"
+  },
+  {
+   "kind": "new_topic",
+   "id": "bridge",
+   "name": "Bridge",
+   "at": "-7d"
+  },
+  {
+   "kind": "move",
+   "item": "notion:task-readme",
+   "to": "bridge",
+   "at": "-7d"
+  },
+  {
+   "kind": "new_topic",
+   "id": "tax",
+   "name": "Tax return 2026",
+   "at": "-7d"
+  },
+  {
+   "kind": "move",
+   "item": "notion:task-tax",
+   "to": "tax",
+   "at": "-7d"
+  },
+  {
+   "kind": "new_topic",
+   "id": "bike",
+   "name": "Bike repair",
+   "at": "-7d"
+  },
+  {
+   "kind": "move",
+   "item": "notion:task-bike",
+   "to": "bike",
+   "at": "-7d"
+  },
+  {
+   "kind": "seen",
+   "topic": "payouts",
+   "upTo": "-30m",
+   "at": "-30m"
+  }
+ ],
+ "health": [
+  {
+   "source": "github",
+   "ok": true,
+   "lastOk": "-1m"
+  },
+  {
+   "source": "linear",
+   "ok": true,
+   "lastOk": "-1m"
+  },
+  {
+   "source": "slack",
+   "ok": true,
+   "lastOk": "-1m"
+  },
+  {
+   "source": "notion",
+   "ok": true,
+   "lastOk": "-1m"
+  }
+ ]
+}

@@ -1,0 +1,42 @@
+{
+  "_about": "Made-up Linear GraphQL data for the Linear source contract test.",
+  "viewer": { "id": "u-me", "displayName": "ghost", "name": "Ghost" },
+  "mine": [
+    {
+      "id": "i1", "identifier": "AC-1636", "title": "Payout retries", "url": "https://linear.app/acme/issue/AC-1636",
+      "updatedAt": "2026-11-20T09:00:00Z", "state": { "name": "In Review", "type": "started" },
+      "assignee": { "id": "u-me", "name": "Ghost" }, "team": { "key": "AC" },
+      "project": { "name": "Payouts v2", "progress": 0.62, "targetDate": "2026-12-12" },
+      "projectMilestone": { "name": "Go-live", "targetDate": "2026-12-12" },
+      "comments": { "nodes": [
+        { "id": "c1", "body": "@ghost should retries stop after 3?", "createdAt": "2026-11-20T08:00:00Z", "user": { "id": "u-sam", "name": "Sam Lee" }, "parent": null }
+      ] },
+      "history": { "nodes": [
+        { "createdAt": "2026-11-19T15:00:00Z", "actor": { "id": "u-me", "name": "Ghost" }, "fromState": { "name": "In Progress" }, "toState": { "name": "In Review" } }
+      ] }
+    }
+  ],
+  "notifications": [
+    { "type": "issueCommentMention", "createdAt": "2026-11-19T18:42:00Z", "issue": { "identifier": "AC-1750" } },
+    { "type": "issueStatusChanged", "createdAt": "2026-11-19T18:00:00Z", "issue": { "identifier": "AC-1999" } },
+    { "type": "issueCommentMention", "createdAt": "2026-10-01T10:00:00Z", "issue": { "identifier": "AC-1001" } }
+  ],
+  "byKey": {
+    "AC-1750": {
+      "id": "i3", "identifier": "AC-1750", "title": "Gateway client ids", "url": "https://linear.app/acme/issue/AC-1750",
+      "updatedAt": "2026-11-19T19:00:00Z", "state": { "name": "In Progress", "type": "started" },
+      "assignee": { "id": "u-toby", "name": "Toby Park" }, "team": { "key": "AC" },
+      "project": null, "projectMilestone": null,
+      "comments": { "nodes": [
+        { "id": "c9", "body": "@ghost which client id do we use on production?", "createdAt": "2026-11-19T18:42:00Z", "user": { "id": "u-toby", "name": "Toby Park" }, "parent": null }
+      ] },
+      "history": { "nodes": [] }
+    },
+    "AC-1702": {
+      "id": "i2", "identifier": "AC-1702", "title": "Photo review queue", "url": "https://linear.app/acme/issue/AC-1702",
+      "updatedAt": "2026-11-19T09:00:00Z", "state": { "name": "In Progress", "type": "started" },
+      "assignee": { "id": "u-maya", "name": "Maya Reyes" }, "team": { "key": "AC" },
+      "project": null, "projectMilestone": null, "comments": { "nodes": [] }, "history": { "nodes": [] }
+    }
+  }
+}

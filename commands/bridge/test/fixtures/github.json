@@ -1,0 +1,41 @@
+{
+  "_about": "Made-up gh output for the GitHub source contract test. ghost is me.",
+  "user": { "login": "ghost" },
+  "search:--author @me open": [
+    { "number": 812, "title": "AC-1636: retry failed payouts", "url": "https://github.com/acme/payments/pull/812", "repository": { "nameWithOwner": "acme/payments" }, "updatedAt": "2026-11-20T11:00:00Z" }
+  ],
+  "search:--review-requested @me": [
+    { "number": 830, "title": "Photo review: bulk approve", "url": "https://github.com/acme/web/pull/830", "repository": { "nameWithOwner": "acme/web" }, "updatedAt": "2026-11-20T09:00:00Z" }
+  ],
+  "search:--reviewed-by @me": [],
+  "search:--merged": [
+    { "number": 801, "title": "AC-1630 ledger entries", "url": "https://github.com/acme/payments/pull/801", "repository": { "nameWithOwner": "acme/payments" }, "updatedAt": "2026-11-19T10:00:00Z" }
+  ],
+  "view:https://github.com/acme/payments/pull/812": {
+    "number": 812, "title": "AC-1636: retry failed payouts", "url": "https://github.com/acme/payments/pull/812",
+    "author": { "login": "ghost", "name": "Ghost" }, "isDraft": false, "reviewDecision": "APPROVED",
+    "statusCheckRollup": [{ "__typename": "CheckRun", "name": "test", "workflowName": "CI", "status": "COMPLETED", "conclusion": "FAILURE", "startedAt": "2026-11-20T10:35:00Z", "completedAt": "2026-11-20T10:42:00Z" }],
+    "reviews": [{ "author": { "login": "toby" }, "state": "APPROVED", "submittedAt": "2026-11-20T09:10:00Z", "body": "LGTM" }],
+    "reviewRequests": [], "state": "OPEN", "createdAt": "2026-11-18T09:00:00Z", "updatedAt": "2026-11-20T11:00:00Z",
+    "mergeable": "MERGEABLE", "mergeStateStatus": "UNSTABLE", "headRefName": "ghost/ac-1636-retries",
+    "commits": [{ "committedDate": "2026-11-20T08:50:00Z" }, { "committedDate": "2026-11-20T08:55:00Z" }],
+    "comments": [], "mergedAt": null, "closedAt": null, "mergedBy": null
+  },
+  "view:https://github.com/acme/web/pull/830": {
+    "number": 830, "title": "Photo review: bulk approve", "url": "https://github.com/acme/web/pull/830",
+    "author": { "login": "maya", "name": "Maya Reyes" }, "isDraft": false, "reviewDecision": "REVIEW_REQUIRED",
+    "statusCheckRollup": [], "reviews": [],
+    "reviewRequests": [{ "__typename": "User", "login": "ghost" }], "state": "OPEN",
+    "createdAt": "2026-11-20T08:50:00Z", "updatedAt": "2026-11-20T09:00:00Z",
+    "mergeable": "MERGEABLE", "mergeStateStatus": "BLOCKED", "headRefName": "maya/AC-1702-bulk-approve",
+    "commits": [{ "committedDate": "2026-11-20T08:45:00Z" }], "comments": [], "mergedAt": null, "closedAt": null, "mergedBy": null
+  },
+  "view:https://github.com/acme/payments/pull/801": {
+    "number": 801, "title": "AC-1630 ledger entries", "url": "https://github.com/acme/payments/pull/801",
+    "author": { "login": "ghost" }, "isDraft": false, "reviewDecision": "APPROVED", "statusCheckRollup": [],
+    "reviews": [{ "author": { "login": "toby" }, "state": "APPROVED", "submittedAt": "2026-11-19T09:00:00Z", "body": "" }],
+    "reviewRequests": [], "state": "MERGED", "createdAt": "2026-11-18T09:00:00Z", "updatedAt": "2026-11-19T10:00:00Z",
+    "mergeable": "UNKNOWN", "mergeStateStatus": "UNKNOWN", "headRefName": "ghost/ac-1630",
+    "commits": [{ "committedDate": "2026-11-18T08:00:00Z" }], "comments": [], "mergedAt": "2026-11-19T10:00:00Z", "closedAt": "2026-11-19T10:00:00Z", "mergedBy": { "login": "ghost" }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "bridge",
+  "version": "0.2.0",
+  "description": "One local page for everything I need to do, answer or keep an eye on, across Slack, GitHub, Linear and Notion GTD",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.18"
+  },
+  "scripts": {
+    "start": "node src/main.ts",
+    "demo": "node src/main.ts --demo",
+    "test": "node --test --test-reporter=spec \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "typescript": "5.9.3"
+  }
+}
